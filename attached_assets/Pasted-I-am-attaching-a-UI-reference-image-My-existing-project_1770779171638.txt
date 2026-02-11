@@ -1,0 +1,93 @@
+I am attaching a UI reference image.
+My existing project is AI Field Notes (Agentic AI system for field voice notes).
+I want to completely refactor the UI theme across the entire application to match the look, feel, and visual language of the attached image.
+
+Do NOT change business logic, APIs, or data flow. This is a UI/UX + theming task only.
+
+Design Requirements (Strict)
+
+Global Theme
+
+Adopt a modern purple–violet gradient system similar to the reference image.
+
+Use soft glassmorphism / neumorphism where appropriate (cards, panels).
+
+Backgrounds should use subtle gradients, not flat colors.
+
+Color System
+
+Primary: Deep Purple / Violet
+
+Secondary: Lavender / Soft Lilac
+
+Accent: Neon Purple / Electric Violet
+
+Neutral: Dark Charcoal / Near-black for contrast
+
+Define colors as CSS variables / theme tokens and reuse everywhere.
+
+Typography
+
+Clean, futuristic, readable font (Inter / SF-like).
+
+Strong hierarchy:
+
+Headings → bold, spaced
+
+Body → medium weight
+
+Labels → subtle opacity
+
+Components
+
+Cards: rounded corners, soft glow, gradient borders.
+
+Buttons: gradient fill with hover glow + smooth transitions.
+
+Progress indicators / stats: circular or minimal charts inspired by the reference UI.
+
+Avoid sharp edges, harsh borders, or flat material styles.
+
+Layout & Feel
+
+Mobile-first, but consistent on desktop.
+
+Spacious layout, clear visual breathing room.
+
+Smooth animations (fade, slide, scale) — no over-animation.
+
+Application Scope
+
+Apply theme to:
+
+Login / Auth screens
+
+Dashboard
+
+Field notes recording screens
+
+AI-generated summaries
+
+Admin / project overview pages
+
+Ensure visual consistency across all pages.
+
+Implementation Rules
+
+Centralize theme (ThemeProvider / global CSS / Tailwind config).
+
+No inline random styles.
+
+Refactor existing components to consume the new theme tokens.
+
+Output Expectations
+
+Update global styles/theme config.
+
+Refactor existing components to match the new theme.
+
+Keep the app functional.
+
+Final UI should visually resemble the attached image in mood, polish, and modernity, not pixel-perfect copying.
+
+If any UI conflicts arise, prioritize clarity and usability over decoration.

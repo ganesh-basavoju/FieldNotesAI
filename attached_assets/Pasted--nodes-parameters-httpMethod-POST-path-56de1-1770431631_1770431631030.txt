@@ -1,0 +1,118 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "56de15fe-5286-4bda-880a-e67c5aa87aa4",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -352,
+        -32
+      ],
+      "id": "87c74f2f-9411-46a9-ad82-ca56152b6a3d",
+      "name": "Webhook",
+      "webhookId": "56de15fe-5286-4bda-880a-e67c5aa87aa4"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        272,
+        -32
+      ],
+      "id": "a643fea8-4865-4257-9508-ce8015bad1e2",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "resource": "audio",
+        "operation": "analyze",
+        "modelId": {
+          "__rl": true,
+          "value": "models/gemini-2.5-flash",
+          "mode": "list",
+          "cachedResultName": "models/gemini-2.5-flash"
+        },
+        "text": "=You are an AI system that converts FIELD AUDIO NOTES\ninto STRUCTURED, EVIDENCE-LINKED WORK ITEMS\nfor construction and insurance documentation.\n\nThis is NOT a meeting summary system.\nThis is an EVIDENCE-FIRST FIELD CAPTURE SYSTEM.\n\n────────────────────────\nINPUTS YOU WILL RECEIVE\n────────────────────────\n1. Project metadata:\n   - projectId\n   - sessionId\n   - sessionType\n   - capturedAt\n\n2. Media assets:\n   - mediaAssetId\n   - type (photo/video)\n   - capturedAt\n   - area\n   - tags\n\n3. Audio notes:\n   - audioNoteId\n   - linkedMediaAssetIds (may be empty)\n   - capturedAt\n   - area\n   - raw transcript segments with timestamps\n\n────────────────────────\nCORE RULES (NON-NEGOTIABLE)\n────────────────────────\n1. DO NOT hallucinate tasks, links, or areas.\n2. DO NOT guess intent.\n3. Every structured output MUST reference:\n   - source_audio_note_id\n   - source_transcript_segment_ids\n4. If confidence < 0.5 → DO NOT create item.\n5. Linking must be explainable and reversible.\n\n────────────────────────\nTRANSCRIPT PROCESSING\n────────────────────────\n- Preserve transcript segments as atomic units.\n- Do NOT rewrite timestamps.\n- Do NOT merge unrelated segments.\n\n────────────────────────\nEXTRACT THE FOLLOWING OUTPUT TYPES\n────────────────────────\n\nA) TASK ITEMS\nCreate ONLY when there is a clear action:\n- \"demo\"\n- \"remove\"\n- \"install\"\n- \"call\"\n- \"schedule\"\n- \"need to\"\n- \"before inspection\"\n\nTask fields:\n- taskId (generate stable id)\n- title (imperative)\n- description (what / where / why)\n- status: Open\n- priority: Low | Medium | High\n- dueDate (ONLY if explicit)\n- suggestedAssignee (optional)\n- tags: trade, phase, area\n- source_audio_note_id\n- source_transcript_segment_ids\n- confidence (0–1)\n\nB) ISSUES / RISKS\nOnly when risk or concern is stated:\n- mold\n- structural\n- water damage\n- access issue\n\nC) QUESTIONS TO OFFICE\nOnly explicit asks:\n- \"need approval\"\n- \"check with insurance\"\n- \"need quote\"\n\nD) CHANGE ORDER CANDIDATES\nOnly when customer intent is stated:\n- \"homeowner wants\"\n- \"upgrade\"\n- \"add\"\n\nE) DAILY LOG BULLETS\nSummarize:\n- work performed\n- materials mentioned\n- trades on site\n- customer requests\n\n────────────────────────\nLINKING RULES (OUTPUT LINKS ONLY, NO SCORES)\n────────────────────────\nFor every task / issue / question / CO:\n- linkMediaAssetIds (array)\n- linkTranscriptSegmentIds (array)\n\nLink when:\n- Direct attachment exists\n- Time proximity ≤ 20 seconds\n- Area matches\n- Keyword overlap exists\n\nIf no strong link → return empty array.\n\n────────────────────────\nOUTPUT FORMAT (STRICT JSON)\n────────────────────────\nReturn ONLY valid JSON.\nNo markdown. No comments.\n\n{\n  \"projectId\": \"string\",\n  \"sessionId\": \"string\",\n  \"area\": \"string\",\n\n  \"transcriptSegments\": [\n    {\n      \"segmentId\": \"string\",\n      \"audioNoteId\": \"string\",\n      \"time\": \"MM:SS\",\n      \"text\": \"verbatim\",\n      \"confidence\": 0.0\n    }\n  ],\n\n  \"tasks\": [],\n  \"issues\": [],\n  \"questions\": [],\n  \"changeOrderCandidates\": [],\n\n  \"dailyLog\": {\n    \"summaryBullets\": [],\n    \"confidence\": 0.0\n  },\n\n  \"audit\": {\n    \"aiModel\": \"Gemini\",\n    \"pipelineVersion\": \"2.0\",\n    \"processedAt\": \"ISO_TIMESTAMP\"\n  }\n}\n\nPROCESS NOW.\nRETURN ONLY JSON.\n",
+        "inputType": "binary",
+        "binaryPropertyName": "file",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1,
+      "position": [
+        -144,
+        -32
+      ],
+      "id": "53133b19-18ac-48d1-9cff-c024b752020c",
+      "name": "Analyze audio",
+      "retryOnFail": true,
+      "credentials": {
+        "googlePalmApi": {
+          "id": "OD347t6XMLlemJCu",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const output = $input.first().json;\n\nconst requiredKeys = [\n  'projectId',\n  'sessionId',\n  'area',\n  'transcriptSegments',\n  'tasks',\n  'issues',\n  'questions',\n  'changeOrderCandidates',\n  'dailyLog',\n  'audit'\n];\n\nfor (const key of requiredKeys) {\n  if (!(key in output)) {\n    throw new Error(`Missing required key: ${key}`);\n  }\n}\n\nreturn { json: output };\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        64,
+        -32
+      ],
+      "id": "ec9695d4-19e5-4b14-ab04-ecfc711f45ac",
+      "name": "Code in JavaScript"
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Analyze audio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze audio": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "de38d954e23125f6b4ee0ce5b82871bce41ce2a311fbe0fae81f7a3daefe187c"
+  }
+}

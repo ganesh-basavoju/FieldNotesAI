@@ -1,0 +1,151 @@
+[
+  {
+    "projectId": "proj-123",
+    "sessionId": "session-456",
+    "area": "Main Living Area",
+    "transcriptSegments": [
+      {
+        "segmentId": "seg-001",
+        "audioNoteId": "audio-789",
+        "time": "00:02",
+        "text": "Okay, we need to upgrade the tiles.",
+        "confidence": 1
+      },
+      {
+        "segmentId": "seg-002",
+        "audioNoteId": "audio-789",
+        "time": "00:04",
+        "text": "then we need to change the flooring.",
+        "confidence": 1
+      },
+      {
+        "segmentId": "seg-003",
+        "audioNoteId": "audio-789",
+        "time": "00:08",
+        "text": "There are so many things the materials have to be received.",
+        "confidence": 1
+      },
+      {
+        "segmentId": "seg-004",
+        "audioNoteId": "audio-789",
+        "time": "00:13",
+        "text": "Then we'll go through the tiles changing.",
+        "confidence": 1
+      },
+      {
+        "segmentId": "seg-005",
+        "audioNoteId": "audio-789",
+        "time": "00:16",
+        "text": "That's it for this meeting.",
+        "confidence": 1
+      }
+    ],
+    "tasks": [
+      {
+        "taskId": "task-001",
+        "title": "Upgrade tiles",
+        "description": "Upgrade the existing tiles.",
+        "status": "Open",
+        "priority": "Low",
+        "tags": [
+          "tile",
+          "upgrade"
+        ],
+        "source_audio_note_id": "audio-789",
+        "source_transcript_segment_ids": [
+          "seg-001"
+        ],
+        "linkMediaAssetIds": [],
+        "linkTranscriptSegmentIds": [
+          "seg-001"
+        ],
+        "confidence": 1
+      },
+      {
+        "taskId": "task-002",
+        "title": "Change flooring",
+        "description": "Change the existing flooring.",
+        "status": "Open",
+        "priority": "Low",
+        "tags": [
+          "flooring",
+          "change"
+        ],
+        "source_audio_note_id": "audio-789",
+        "source_transcript_segment_ids": [
+          "seg-002"
+        ],
+        "linkMediaAssetIds": [],
+        "linkTranscriptSegmentIds": [
+          "seg-002"
+        ],
+        "confidence": 1
+      },
+      {
+        "taskId": "task-003",
+        "title": "Review tiles changing process",
+        "description": "Go through the process for changing the tiles.",
+        "status": "Open",
+        "priority": "Low",
+        "tags": [
+          "tile",
+          "planning"
+        ],
+        "source_audio_note_id": "audio-789",
+        "source_transcript_segment_ids": [
+          "seg-004"
+        ],
+        "linkMediaAssetIds": [],
+        "linkTranscriptSegmentIds": [
+          "seg-004"
+        ],
+        "confidence": 1
+      }
+    ],
+    "issues": [],
+    "questions": [],
+    "changeOrderCandidates": [
+      {
+        "title": "Tile upgrade",
+        "description": "Upgrade the tiles mentioned.",
+        "source_audio_note_id": "audio-789",
+        "source_transcript_segment_ids": [
+          "seg-001"
+        ],
+        "linkMediaAssetIds": [],
+        "linkTranscriptSegmentIds": [
+          "seg-001"
+        ],
+        "confidence": 1
+      },
+      {
+        "title": "Flooring change",
+        "description": "Change the flooring mentioned.",
+        "source_audio_note_id": "audio-789",
+        "source_transcript_segment_ids": [
+          "seg-002"
+        ],
+        "linkMediaAssetIds": [],
+        "linkTranscriptSegmentIds": [
+          "seg-002"
+        ],
+        "confidence": 1
+      }
+    ],
+    "dailyLog": {
+      "summaryBullets": [
+        "Noted the need to upgrade the tiles.",
+        "Noted the need to change the flooring.",
+        "Mentioned that materials have to be received.",
+        "Will go through the tiles changing process.",
+        "Meeting concluded."
+      ],
+      "confidence": 1
+    },
+    "audit": {
+      "aiModel": "Gemini",
+      "pipelineVersion": "2.0",
+      "processedAt": "2023-10-27T10:10:00Z"
+    }
+  }
+]

@@ -1,0 +1,72 @@
+{
+  "expo": {
+    "name": "FieldCapture Pro",
+    "slug": "fieldcapture-pro",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "scheme": "fieldcapture",
+    "userInterfaceStyle": "dark",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/images/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#000000"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.fieldcapture.pro",
+      "infoPlist": {
+        "NSCameraUsageDescription": "FieldCapture Pro needs camera access to capture photos and videos of construction sites.",
+        "NSMicrophoneUsageDescription": "FieldCapture Pro needs microphone access to record voice notes in the field.",
+        "NSPhotoLibraryUsageDescription": "FieldCapture Pro needs photo library access to save captured media."
+      }
+    },
+    "android": {
+      "package": "com.fieldcapture.pro",
+      "adaptiveIcon": {
+        "backgroundColor": "#000000",
+        "foregroundImage": "./assets/images/android-icon-foreground.png",
+        "backgroundImage": "./assets/images/android-icon-background.png",
+        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+      },
+      "permissions": [
+        "CAMERA",
+        "RECORD_AUDIO",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/images/favicon.png"
+    },
+    "plugins": [
+      [
+        "expo-router",
+        {
+          "origin": "https://replit.com/"
+        }
+      ],
+      "expo-font",
+      "expo-web-browser",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "FieldCapture Pro needs camera access to capture photos and videos of construction sites.",
+          "microphonePermission": "FieldCapture Pro needs microphone access to record voice notes.",
+          "recordAudioAndroid": true
+        }
+      ],
+      [
+        "expo-av",
+        {
+          "microphonePermission": "FieldCapture Pro needs microphone access to record voice notes in the field."
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true,
+      "reactCompiler": true
+    }
+  }
+}

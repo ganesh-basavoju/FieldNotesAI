@@ -1,0 +1,205 @@
+You are a senior mobile architect and React Native staff engineer.
+
+Your task is to DESIGN AND IMPLEMENT a production-ready MOBILE APP FRONTEND ONLY.
+NO backend logic. NO AI logic. NO mock-only demo shortcuts.
+
+The app is an offline-first field capture system for construction teams:
+photos + voice notes → AI-generated tasks and evidence links.
+
+AI processing already exists and is handled via n8n webhook.
+Your job is to build the mobile app that CAPTURES, STORES, DISPLAYS, and REVIEWS data.
+
+────────────────────────
+CORE CONSTRAINTS (NON-NEGOTIABLE)
+────────────────────────
+• Mobile App ONLY (React Native)
+• Offline-first must work with ZERO network
+• Data must survive long walkthroughs (30–60 min)
+• Must scale to hundreds of assets per project
+• UX must feel premium, fast, and deliberate (enterprise-grade)
+• Deterministic behavior > “AI magic”
+
+────────────────────────
+TECH STACK (MANDATORY)
+────────────────────────
+Framework:
+- React Native (latest stable)
+- New Architecture enabled (Fabric + TurboModules)
+- TypeScript everywhere
+
+Navigation & Gestures:
+- React Navigation (native-stack)
+- react-native-gesture-handler
+- react-native-reanimated
+
+UI System:
+- NativeWind (Tailwind-style)
+- React Native Paper
+- react-native-bottom-sheet
+
+State & Sync:
+- Zustand (local/global UI state)
+- TanStack Query (server + webhook sync)
+
+Offline Storage:
+- MMKV (queues, flags, job states)
+- WatermelonDB (projects, media, transcript segments, tasks, links)
+
+Media:
+- react-native-vision-camera (photo/video)
+- react-native-audio-recorder-player (audio)
+- react-native-background-upload (uploads when online)
+
+Monitoring:
+- Sentry
+- Firebase Crashlytics
+
+────────────────────────
+DESIGN SYSTEM (MUST FOLLOW EXACTLY)
+────────────────────────
+Theme: Luxury Black + White + Purple Gradient
+
+Backgrounds:
+- Global: #000000
+- Dashboard: #050505
+- Cards: white/5 opacity with blur
+
+Text:
+- Default: white
+- Muted: gray-400
+- Active / Selected: purple / indigo
+
+Accents:
+- Indigo → Purple gradients for:
+  • main headings
+  • active tabs
+  • AI confidence badges
+
+NO light theme.
+Dark mode only.
+High contrast.
+Minimalist.
+No visual clutter.
+
+────────────────────────
+CORE USER FLOWS (BUILD THESE)
+────────────────────────
+
+1) Project & Area Context
+- Always show current Project + Area at top
+- Area selector must be 1-tap (Kitchen / Bath / Roof / Exterior / Other)
+
+2) Capture Modes
+A) Photo + Speak (DEFAULT)
+- Take photo/video
+- Immediately hold-to-speak
+- Audio auto-attaches to that media
+
+B) Walkthrough Mode
+- Start session
+- Continuous audio recording
+- Rapid photos/videos
+- End session → data grouped
+
+C) Voice Note Only
+- Record audio without media
+- Area still required
+
+3) Offline Behavior
+- App launches offline
+- All media/audio stored locally
+- Visible status per asset:
+  Captured ✓ | Syncing ⟳ | Uploaded ✔ | Failed ⚠
+- Manual retry + Wi-Fi-only toggle
+
+4) AI Webhook Integration
+- On upload completion, POST to:
+  https://n8n.srv1116545.hstgr.cloud/webhook-test/56de15fe-5286-4bda-880a-e67c5aa87aa4
+
+Payload must include:
+- project_id
+- area
+- media_asset_ids
+- audio_note_ids
+- local timestamps
+
+- Poll or receive webhook result (simulated)
+- Store returned:
+  • transcript segments
+  • tasks
+  • confidence scores
+  • suggested links
+
+5) Session Review Screen (CRITICAL)
+Layout:
+- LEFT: media timeline (photos/videos)
+- RIGHT: task list + transcript snippets
+
+Each task must show:
+- linked media thumbnails
+- linked transcript lines
+- confidence badge
+
+User actions:
+- accept/remove links
+- edit task title/description
+- reassign area
+- mark task status
+
+All edits must be tracked:
+- AI suggestion vs human edit
+- timestamp + user
+
+6) Task System
+Task fields:
+- title
+- description
+- status (Open / In Progress / Blocked / Done)
+- priority
+- due date (optional)
+- tags (trade, phase, area)
+- linked evidence
+
+Views:
+- Project task list
+- Area-based punch list
+- “Today” view
+- Blocked items
+
+────────────────────────
+DATA MODELS (DO NOT SIMPLIFY)
+────────────────────────
+Entities:
+- Project
+- Area
+- MediaAsset
+- AudioNote
+- TranscriptSegment
+- TaskItem
+- EvidenceLink
+
+Links must be explicit join tables with:
+- link_type (strong / suggested / possible)
+- link_score
+- created_by (system/user)
+
+────────────────────────
+OUTPUT FORMAT
+────────────────────────
+1) App architecture overview
+2) Folder structure
+3) Core data models (TypeScript)
+4) Key screens (with component breakdowns)
+5) Offline + sync logic explanation
+6) Webhook integration example
+7) What is mocked vs real
+8) What is V1 vs V2
+
+DO NOT:
+- invent backend endpoints
+- simplify offline logic
+- skip review UI
+- gloss over storage
+
+BUILD THIS LIKE IT WILL BE USED BY REAL FIELD TECHS,
+IN RAIN, GLOVES ON, NO SIGNAL, WITH LEGAL CONSEQUENCES.

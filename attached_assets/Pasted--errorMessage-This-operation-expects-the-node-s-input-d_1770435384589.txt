@@ -1,0 +1,29 @@
+{
+  "errorMessage": "This operation expects the node's input data to contain a binary file 'file', but none was found [item 0]",
+  "errorDescription": "Make sure that the previous node outputs a binary file",
+  "errorDetails": {},
+  "n8nDetails": {
+    "nodeName": "Analyze audio",
+    "nodeType": "@n8n/n8n-nodes-langchain.googleGemini",
+    "nodeVersion": 1,
+    "resource": "audio",
+    "operation": "analyze",
+    "itemIndex": 0,
+    "time": "07/02/2026, 09:05:03",
+    "n8nVersion": "1.119.1 (Self Hosted)",
+    "binaryDataMode": "default",
+    "stackTrace": [
+      "NodeOperationError: This operation expects the node's input data to contain a binary file 'file', but none was found [item 0]",
+      "    at assertBinaryData (/usr/local/lib/node_modules/n8n/node_modules/.pnpm/n8n-core@file+packages+core_@opentelemetry+api@1.9.0_@opentelemetry+sdk-trace-base@1.30_08b575bec2313d5d8a4cc75358971443/node_modules/n8n-core/src/execution-engine/node-execution-context/utils/binary-helper-functions.ts:93:9)",
+      "    at Object.assertBinaryData (/usr/local/lib/node_modules/n8n/node_modules/.pnpm/n8n-core@file+packages+core_@opentelemetry+api@1.9.0_@opentelemetry+sdk-trace-base@1.30_08b575bec2313d5d8a4cc75358971443/node_modules/n8n-core/src/execution-engine/node-execution-context/execute-context.ts:104:21)",
+      "    at /usr/local/lib/node_modules/n8n/node_modules/.pnpm/@n8n+n8n-nodes-langchain@file+packages+@n8n+nodes-langchain_ec7fbe0da3d2dc5c86e61be805f9ba74/node_modules/@n8n/n8n-nodes-langchain/nodes/vendors/GoogleGemini/helpers/baseAnalyze.ts:66:37",
+      "    at Array.map (<anonymous>)",
+      "    at ExecuteContext.baseAnalyze (/usr/local/lib/node_modules/n8n/node_modules/.pnpm/@n8n+n8n-nodes-langchain@file+packages+@n8n+nodes-langchain_ec7fbe0da3d2dc5c86e61be805f9ba74/node_modules/@n8n/n8n-nodes-langchain/nodes/vendors/GoogleGemini/helpers/baseAnalyze.ts:65:5)",
+      "    at ExecuteContext.execute (/usr/local/lib/node_modules/n8n/node_modules/.pnpm/@n8n+n8n-nodes-langchain@file+packages+@n8n+nodes-langchain_ec7fbe0da3d2dc5c86e61be805f9ba74/node_modules/@n8n/n8n-nodes-langchain/nodes/vendors/GoogleGemini/actions/audio/analyze.operation.ts:101:27)",
+      "    at ExecuteContext.router (/usr/local/lib/node_modules/n8n/node_modules/.pnpm/@n8n+n8n-nodes-langchain@file+packages+@n8n+nodes-langchain_ec7fbe0da3d2dc5c86e61be805f9ba74/node_modules/@n8n/n8n-nodes-langchain/nodes/vendors/GoogleGemini/actions/router.ts:52:39)",
+      "    at ExecuteContext.execute (/usr/local/lib/node_modules/n8n/node_modules/.pnpm/@n8n+n8n-nodes-langchain@file+packages+@n8n+nodes-langchain_ec7fbe0da3d2dc5c86e61be805f9ba74/node_modules/@n8n/n8n-nodes-langchain/nodes/vendors/GoogleGemini/GoogleGemini.node.ts:15:23)",
+      "    at WorkflowExecute.executeNode (/usr/local/lib/node_modules/n8n/node_modules/.pnpm/n8n-core@file+packages+core_@opentelemetry+api@1.9.0_@opentelemetry+sdk-trace-base@1.30_08b575bec2313d5d8a4cc75358971443/node_modules/n8n-core/src/execution-engine/workflow-execute.ts:1093:31)",
+      "    at WorkflowExecute.runNode (/usr/local/lib/node_modules/n8n/node_modules/.pnpm/n8n-core@file+packages+core_@opentelemetry+api@1.9.0_@opentelemetry+sdk-trace-base@1.30_08b575bec2313d5d8a4cc75358971443/node_modules/n8n-core/src/execution-engine/workflow-execute.ts:1274:22)"
+    ]
+  }
+}

@@ -1,0 +1,923 @@
+version1:
+AI-Powered Field Notes & Action Item System
+Requirements & Architecture — Version 3.0 (Production-Ready)
+Executive Purpose
+This system captures live, in-person conversations occurring in the field (project managers, subcontractors, homeowners, vendors, internal staff), transforms them into clean, structured, legally defensible meeting notes, extracts actionable commitments, and integrates them directly into the company’s job management and communication workflows.
+The system is designed for real-world construction environments, prioritizing:
+Offline-first reliability
+Legal compliance (California all-party consent)
+Human-in-the-loop review
+Auditability and defensibility
+High trust and low friction for field users
+1. Core System Architecture Overview
+The system consists of four primary components:
+Mobile Recording Application (Offline-First PWA)
+AI Processing & Intelligence Service
+Data Management, Integration & Notification Service
+Governance, Security & Audit Layer (Cross-Cutting)
+Each component is modular, scalable, and fault-tolerant.
+2. Mobile Recording Application
+Offline-First Progressive Web App (PWA)
+2.1 Platform & Design Requirements
+Cloud-based PWA optimized for iOS and Android mobile phones
+Large touch targets, high-contrast UI for outdoor jobsite use
+Designed to function fully offline for extended periods
+iOS-aware constraints (background behavior, storage eviction)
+2.2 Pre-Meeting Setup & Job Context (Mandatory)
+Recording cannot begin until the following are completed:
+Required Fields
+Job ID
+Validated against job management system (when online)
+Offline fallback allowed with later reconciliation
+Meeting Type (required dropdown)
+Scope / Change Order
+Scheduling / Access
+Material Selection
+Subcontractor Coordination
+Vendor / Procurement
+Internal Team Meeting
+Participants (Role-First)
+PM
+Homeowner
+Subcontractor
+Vendor
+Internal Staff
+Consent Confirmation
+Checkbox: “All parties have consented to being recorded”
+Consent method:
+Verbal
+Written
+Contractual clause
+Recorder Identity
+Logged automatically (user account + device)
+Consent confirmation is logged and immutable as part of the audit trail.
+2.3 Recording Functionality (Offline-First)
+Audio Capture
+Uses native device microphone
+Designed for noisy environments (wind, overlapping voices)
+Crash-safe recording with recovery of partial files
+Offline Requirements
+App must:
+Launch offline
+Complete pre-meeting setup offline
+Record audio offline
+Audio + metadata saved locally using:
+IndexedDB / File System Access APIs
+Local encryption is applied where supported
+2.4 Post-Meeting Storage & Synchronization
+Local First Save
+On STOP:
+Audio file
+Metadata
+Consent record
+Timestamp
+Device ID
+Upload Queue
+Automatic background upload when connectivity returns
+Chunked, resumable uploads with integrity checks
+Handles interruptions gracefully
+Status Indicators
+Ready to Upload
+Uploading
+Upload Failed (Retry Available)
+Upload Complete
+User Controls
+Manual retry
+“Upload only on Wi-Fi”
+Storage warnings if OS eviction risk is detected
+3. AI Processing & Intelligence Service
+3.1 Speech-to-Text & Diarization
+Transcription
+High-accuracy speech-to-text optimized for construction vocabulary
+Speaker Diarization
+Role-first labeling (PM, Sub, HO, Vendor)
+Pre-entered participants used as hints, not assumptions
+Confidence scoring per segment
+Fallback label: “Unknown Speaker” (never guess)
+Optional:
+Lightweight voice enrollment for PMs to improve accuracy
+3.2 Transcript Processing & Condensation
+Raw Transcript (Immutable)
+Full verbatim transcript
+Stored permanently (subject to retention policy)
+Edited Transcription (Structured Summary)
+Removes:
+Filler words
+Repetition
+Social pleasantries
+Focuses on:
+Decisions
+Agreements
+Clarifications
+Scope changes
+Scheduling constraints
+Written in neutral, professional, non-admissive language
+Versioned edits only — raw transcript is never modified.
+3.3 Action Item Extraction Engine
+Detection Rules
+Only extract tasks where commitment language exists
+“I will…”
+“We need to…”
+“You’ll handle…”
+Suggestions or discussions are labeled separately
+Action Item Schema
+Each action item includes:
+Title (imperative verb)
+Owner Role (PM / Other Party)
+Owner Name (if known)
+Due Date (explicit or inferred)
+Priority (if detectable)
+Source Quote (linked transcript segment)
+Confidence Score
+Categorization
+PM To-Do List
+Other Party To-Do List
+No hallucinated commitments permitted.
+3.4 Confidence & Quality Scoring
+Transcript confidence
+Diarization confidence
+Action item confidence
+Flags for low-confidence outputs
+4. Human-in-the-Loop Review & Approval
+4.1 Review Interface (Mobile + Desktop)
+Before any communication or integration:
+PM can:
+Edit summary text
+Merge/split/reassign action items
+Adjust due dates
+Remove sensitive content
+Approve or discard notes
+4.2 Versioning & Defensibility
+Raw transcript: immutable
+Edited notes: versioned
+Approval timestamp logged
+5. Data Management, Integration & Storage
+5.1 Core Data Structure (JSON)
+Includes:
+Job ID
+Meeting Type
+Timestamp
+Participants
+Consent record
+Raw Transcript
+Edited Transcription (versioned)
+PM Action Items (array)
+Other Party Action Items (array)
+Confidence metrics
+Audit metadata
+5.2 Job Management Integration
+Automatic Filing
+Filed to correct job via Job ID
+Idempotent writes (no duplicates)
+Failure Handling
+Dead-letter queue for failed integrations
+Manual reassignment if Job ID mismatch occurs
+Optional future:
+Bi-directional task sync
+6. Communication & Notification System
+6.1 Email Dispatch (Post-Approval)
+Trigger
+Only after PM approval
+Recipients
+Assigned PM
+Optional supervisor
+Email Content
+Job ID + Date/Time
+Clean Edited Transcription
+PM To-Do List
+Other Party To-Do List
+Formatted for:
+Easy forwarding
+Clean client-safe language
+6.2 Templates & Tone Controls
+Homeowner
+Subcontractor
+Vendor
+Tone selector:
+Neutral
+Friendly
+Firm
+Language guardrails prevent:
+Admissions of fault
+Guarantees
+Schedule promises beyond approved language
+7. Governance, Security & Compliance Layer
+7.1 Legal & Compliance
+California all-party consent enforcement
+Retention policies by job/client
+Legal hold capability
+7.2 Security
+Encryption in transit and at rest
+Role-based access control
+Tenant isolation (for future SaaS)
+7.3 Audit Log (Tamper-Evident)
+Logs:
+Recording initiation
+Consent confirmation
+Upload
+AI processing
+Review edits
+Approval
+Email dispatch
+8. Analytics & Continuous Improvement
+Usage metrics by PM
+Accuracy feedback (“Was this correct?”)
+Common failure environments
+Edit frequency before approval
+Processing latency
+9. MVP vs Phase-2 Guidance
+MVP (Must-Have)
+Offline recording
+Consent capture
+Transcription + summary
+Action items
+PM review
+Email output
+Phase 2
+Voice enrollment
+Task system sync
+Advanced redaction
+Multi-tenant SaaS support
+
+
+version2:
+AI-Powered Field Photo + Voice Notes + To-Do Platform
+(CompanyCam-style, but with AI-driven voice → tasks + automatic linking)
+1. Core Objectives (Non-Negotiable)
+The system must:
+Capture photos/videos and spoken notes in the field (mobile-first)
+Convert speech to structured outputs:
+tasks / to-dos
+punch lists
+change order candidates
+questions to office / adjuster
+daily logs
+Link everything (voice note ↔ photos ↔ video ↔ tasks ↔ project phase ↔ room/area)
+Work offline, then sync with full chain-of-custody metadata
+
+2. Core Data Model (Everything Must Be Linkable)
+Your devs should implement explicit entities:
+Required Entities
+Project
+Location/Area (room, elevation, zone, “Kitchen”, “Roof”, “South Wall”)
+MediaAsset (photo/video)
+AudioNote (raw audio + transcript)
+TranscriptSegment (timestamped chunks)
+TaskItem (structured to-do)
+Observation (damage note, scope note, concern)
+ConversationThread (comments / clarifications)
+EvidencePackage (export/report bundle)
+Required Relationships
+Project ↔ Area ↔ MediaAsset
+MediaAsset ↔ AudioNote (one-to-many)
+AudioNote ↔ TranscriptSegment
+TranscriptSegment ↔ TaskItem (many-to-many)
+TaskItem ↔ MediaAsset (many-to-many)
+This matters because a single spoken note often references multiple photos and vice versa.
+
+3. Mobile Capture Requirements (Photos + “Speak” Mode)
+Capture Modes
+Photo/Video Capture (standard)
+Photo + Speak (recommended default)
+take photo → immediately press and hold “Speak”
+voice note automatically attaches to that photo
+Walkthrough Mode
+continuous audio recording + rapid photos/videos
+system groups all media into a “session”
+later AI auto-links transcript segments to media timestamps
+Offline-First
+All photos/videos/audio stored locally until sync
+Local queue + retry logic
+Visible sync status per asset
+
+4. AI Speech-to-Structure Pipeline (Critical)
+This is the new “engine.”
+Input Types
+Raw audio captured on mobile
+Optional: call recordings or meeting recordings (Phase 2)
+Output Types (Must Generate)
+From each audio note / walkthrough:
+Transcript (with timestamps)
+Summary (1–3 bullets)
+Task items with:
+title
+description
+due date (if stated)
+priority (if implied)
+assignee suggestion (optional)
+category tag (demo, drying, rebuild, billing, insurance, etc.)
+Issues/risks (e.g., “possible mold”, “structural concern”)
+Change order candidates (if user says anything like “owner wants…”)
+Questions to send to office (“Need approval”, “Need electrician quote”)
+Requirements for the AI Output
+Every structured item must include:
+source_audio_note_id
+source_transcript_segment_ids
+confidence score (0–1)
+Items must be editable by humans, with change tracking (AI suggestion vs human edits)
+
+5. Automatic Linking Logic (Voice ↔ Photos/Videos ↔ Tasks)
+This is where you win or lose.
+Linking Rules (Must Implement)
+The system must auto-link in at least these ways:
+Direct attachment
+If user records audio immediately after a photo/video, link it automatically.
+Time proximity linking (Walkthrough Mode)
+If transcript segment time overlaps a photo timestamp window (e.g., within ±20 seconds), link.
+Location/Area linking
+If user selected “Kitchen” area, all assets + tasks inherit that context.
+Keyword/entity linking
+If transcript mentions “south wall” or “master bath,” link to assets tagged similarly.
+Manual linking override
+User can add/remove links easily:
+“Attach this note to these 3 photos”
+“This task belongs to roof video”
+UI Requirement
+In a photo view: show linked tasks + transcript snippets
+In a task view: show linked photos/videos + transcript evidence
+
+6. To-Do / Punch List System (Not Optional)
+This is not a lightweight checkbox list — it must be operational.
+Task Fields
+Title
+Description
+Status: Open / In Progress / Blocked / Done
+Priority: Low/Med/High
+Due date
+Assignee (internal user)
+Tags (trade + phase + insurance)
+Linked evidence (photos/videos/audio/transcript segments)
+Task Views
+Project task list
+Area-based punch list
+“Today” view per user
+“Blocked items” dashboard
+Actions
+Assign
+Comment
+Attach media
+Mark complete (with optional completion photo requirement)
+
+7. “Daily Log” and “Job Diary” (AI-Generated)
+Per project per day, the system must generate:
+Work performed summary
+Issues encountered
+Materials delivered
+Trades on site (if spoken)
+Customer requests (auto-flagged)
+Pending tasks
+This becomes a defensible timeline for insurance and disputes.
+
+8. Reporting & Exports (Evidence Packages)
+Generate PDFs / bundles that include:
+Selected photos with captions
+Linked task list (open/closed)
+Transcript excerpts for key issues
+Timestamps + user attribution
+Optional “Change Order Candidates” section
+Export formats:
+PDF
+Zip bundle (original media + CSV + JSON audit)
+
+9. Audit Trail & Chain of Custody (Expanded)
+In addition to normal photo chain-of-custody, also store:
+Audio capture time vs upload time
+Transcript generation time
+AI model version (or internal “pipeline version”)
+Human edits to tasks and notes (diff log)
+
+10. API-First Requirements (Mandatory)
+APIs
+Create/update projects
+Upload media/audio
+Create transcript + structured extraction job
+Retrieve transcript segments
+Create/update tasks
+Link/unlink assets
+Generate daily logs
+Generate evidence packages
+Webhooks
+media.uploaded
+audio.transcribed
+ai.tasks.generated
+task.updated
+report.generated
+
+11. Security & Privacy
+Encryption at rest + in transit
+Signed links w/ expiration
+Role-based access
+External sharing controls (read-only, time-limited)
+Optional PII redaction mode (Phase 2)
+
+12. Acceptance Criteria (What “Done” Means)
+A field tech can:
+Take 20 photos, speak naturally (“Demo this cabinet, call plumber, homeowner wants upgraded tile”)
+End the walkthrough
+The office sees:
+photos organized by area/time
+transcript + summary
+a clean, editable task list with evidence linked
+change order candidates flagged
+Everything is timestamped and exportable in a dispute-ready format
+
+Phase 2 (High Value Add-Ons)
+Auto-classify photos (water damage, mold, smoke, structural)
+“Missing documentation” alerts (“No moisture map photo for Day 2”)
+Auto-generate scope notes / estimating checklist from tasks
+Create change order drafts from flagged items and link photos into the CO
+Below is a one-page developer brief (tight, implementation-oriented) that explains the AI linking algorithm, thresholds, and UI flow so your engineers don’t build a “cool demo” that becomes a messy database.
+
+One-Page Developer Brief
+AI Voice → Transcript → Tasks → Evidence Linking (Photos/Videos)
+Goal
+When a tech captures photos/videos + spoken notes, the system must automatically produce:
+a clean transcript
+a structured task list / punch list
+strong evidence links between tasks ↔ transcript snippets ↔ media, with easy human correction.
+
+1) The Field Capture UX (The “Happy Path”)
+Modes (all must exist)
+A) Photo + Speak (default)
+User takes photo/video → taps “Hold to Speak”
+Creates an AudioNote directly linked to that media asset
+B) Walkthrough Mode
+Start session → continuous audio recording
+User captures photos/videos throughout
+Session ends → auto-process and auto-link
+C) Voice Note Only
+“Kitchen note: …” without media
+Still creates tasks; can be linked later
+Required UI guardrails
+Always show current Project + Area at the top
+Area selector must be 1 tap (“Kitchen / Bath / Roof / Exterior / Other”)
+Show a lightweight “Captured ✓ / Syncing ⟳ / Uploaded ︎” badge per asset
+
+2) Processing Pipeline (Async Jobs)
+Job stages (must be explicit and resumable)
+Upload raw media + audio (preserve originals)
+Transcribe audio → TranscriptSegments (timestamped)
+Extract structured outputs:
+Tasks
+Issues/Risks
+Change-order candidates
+Summary + Daily Log bullets
+Link:
+AudioNote ↔ MediaAssets
+TranscriptSegments ↔ MediaAssets
+TaskItems ↔ MediaAssets + TranscriptSegments
+Notify via webhooks + UI updates
+Required metadata on every AI artifact
+pipeline_version
+created_at_utc
+source_audio_note_id
+source_transcript_segment_ids
+confidence_score (0–1)
+
+3) Linking Algorithm (Deterministic First, AI Second)
+Why: reliability > magic
+Build links using a tiered scoring system. AI should enhance, not replace.
+3.1 Evidence Link Score (0–100)
+Compute a score for linking a TranscriptSegment (or TaskItem) to a MediaAsset:
+A) Direct attachment (Photo+Speak)
+If AudioNote created from a specific photo/video: +80 (auto-link, “locked” unless user removes)
+B) Time proximity (Walkthrough Mode)
+Δt = abs(media.capture_time - segment.midpoint_time)
+Thresholds:
+Δt ≤ 10s: +45
+10–25s: +30
+25–60s: +15
+60s: +0
+C) Area match
+If segment/task has area tag (explicit user selection or AI inferred) and matches media area: +20
+If project-only match: +5
+D) Keyword/entity match
+Extract entities from segment/task:
+rooms/areas (“kitchen”, “master bath”)
+building parts (“baseboard”, “drywall”, “cabinet”)
+trades (“plumber”, “electrician”)
+If entity overlap with media tags/captions: +15
+E) User confirmation history (learning)
+If user repeatedly links similar phrases to similar areas/components: +5–10
+(simple per-company dictionary; no “training” required)
+3.2 Link decisions
+Score ≥ 70 → auto-link (strong)
+Score 45–69 → auto-link but mark “suggested” (UI badge)
+Score 25–44 → show as “possible link” in review
+Score < 25 → do not link
+3.3 “Linking unit”
+Link at TranscriptSegment level (timestamped chunks)
+Tasks link to multiple transcript segments
+Tasks link to multiple media assets
+
+4) Task Extraction Rules (Make Tasks Usable)
+Task creation heuristics
+Create a TaskItem when the transcript contains:
+imperatives: “need to”, “do”, “fix”, “remove”, “install”, “call”, “schedule”
+assignments: “have John…”, “tell office…”
+deadlines: “today”, “tomorrow”, “before inspection”
+Task schema (minimum)
+title (short verb phrase)
+description (what/where/why)
+status (Open default)
+priority (default Medium; bump if “urgent”, “ASAP”, “before inspection”)
+due_date (only if explicitly stated; otherwise null)
+suggested_assignee (optional; based on trade keywords)
+tags: {phase, trade, area}
+evidence_links: media_asset_ids + transcript_segment_ids
+Avoid junk tasks
+Do not create tasks for purely descriptive statements unless there’s a clear action
+Deduplicate similar tasks within the same session (string similarity + area match)
+
+5) Review UI (Where Humans Correct the AI Fast)
+The “Session Review” screen (must exist)
+After processing a walkthrough:
+Left: timeline of photos/videos
+Right: generated tasks + key transcript snippets
+Each task shows linked thumbnails (tap to add/remove)
+“Accept all suggested links” + “Edit tasks” controls
+In-photo view
+Show:
+linked tasks (open first)
+linked transcript snippets (tap to play audio at that timestamp)
+In-task view
+Show:
+linked evidence gallery
+“source” transcript lines
+play audio from the exact segment
+Human edits must write back:
+link_added_by_user / link_removed_by_user
+task_edited_by_user
+edit timestamp + user id
+
+6) Suggested Implementation (Simple + Durable)
+Services/modules
+Media service (store originals + thumbnails)
+Audio/transcription service (asynchronous)
+AI extraction service (tasks/issues/summaries)
+Linking service (scoring + decisions)
+Tasks service (CRUD + RBAC)
+Reporting service (evidence packages)
+Database hint
+Store links in a join table with:
+link_type (strong/suggested/possible)
+link_score
+created_by (system/user)
+created_at
+
+7) Definition of Done (for Engineers)
+A QA tester can:
+do a 3-minute walkthrough with 15 photos and 1 video
+speak 8 action items naturally
+see within minutes:
+transcript
+tasks
+80% correct auto-linking of tasks to the right photos/video
+ability to fix the remaining links in under 2 minutes
+export a PDF evidence package with tasks + photos + transcript excerpts
+
+If you want, I can also output this as:
+Jira epics + user stories + acceptance tests
+a technical architecture diagram
+or a v1/v2 roadmap (so you don’t overbuild before you prove workflow adoption).
+
+
+
+TECH STACK I WANT INCLUDE(IF ANY OTHER NEED INCLUDE)
+1. Mobile App (Field Techs)
+Core Framework
+
+React Native
+
+Latest stable
+
+New Architecture enabled (Fabric + TurboModules)
+
+Required for heavy media + gesture + animation performance
+
+Language
+
+TypeScript
+
+Mandatory for a system this complex
+
+Prevents silent data-model breakage
+
+2. Navigation & Gestures (Performance-Critical)
+
+React Navigation
+
+native-stack for iOS/Android parity
+
+React Native Gesture Handler
+
+React Native Reanimated
+
+These three together give you:
+
+buttery smooth swipe timelines
+
+hold-to-record interactions
+
+animated task/media linking UI
+
+Non-negotiable for a premium feel.
+
+3. UI System (Premium / Professional Look)
+Styling
+
+NativeWind
+
+Fast iteration
+
+Consistent spacing + typography
+
+Easy dark mode + theming
+
+Component Library
+
+React Native Paper
+
+Accessibility built-in
+
+Enterprise-friendly UI
+
+Works well with NativeWind overrides
+
+Advanced UI / Sheets / Modals
+
+React Native Bottom Sheet
+
+Used for:
+
+task edit panels
+
+evidence linking
+
+quick actions
+
+4. State Management (Scales Without Pain)
+Local + Global State
+
+Zustand
+
+Minimal boilerplate
+
+Excellent for:
+
+capture sessions
+
+UI flags
+
+offline queues
+
+Server / Sync State
+
+TanStack Query
+
+Handles:
+
+retries
+
+background refetch
+
+optimistic updates
+
+Essential for unreliable field connectivity
+
+5. Offline-First Storage (CRITICAL)
+High-Speed Local Storage
+
+MMKV
+
+For:
+
+sync queues
+
+capture metadata
+
+AI job states
+
+Structured Offline DB
+
+WatermelonDB
+
+Sync-friendly
+
+Designed for React Native
+
+Handles projects, tasks, links, transcript segments
+
+This is what prevents your app from collapsing during long walkthroughs.
+
+6. Media Capture & Processing
+Camera / Video
+
+React Native Vision Camera
+
+Faster than Expo Camera
+
+Better control over:
+
+timestamps
+
+quality
+
+background processing
+
+Audio Recording
+
+React Native Audio Recorder Player
+
+Reliable long recordings
+
+Accurate timestamps (important for linking)
+
+Background Uploads
+
+React Native Background Upload
+
+
+
+
+8. Backend & APIs (API-First)
+Core Backend
+
+Node.js
+
+
+
+
+
+Database
+
+mongodb
+
+
+
+Media Storage
+
+Amazon S3
+
+Signed URLs for secure access
+
+
+
+
+9. Security, Audit & Compliance
+
+JWT
+
+AWS KMS
+
+End-to-end TLS
+
+Immutable audit logs (task edits, AI vs human)
+
+10. Animations & UX Polish (What Makes It “Premium”)
+
+Use Reanimated + Gesture Handler to implement:
+
+hold-to-speak ripple animations
+
+animated task confidence badges
+
+timeline scrubbing with audio sync
+
+smooth evidence linking drag-and-drop
+
+This is what separates a $30/mo tool from a $200+/user enterprise product.
+
+
+
+12. Monitoring & Stability
+
+Sentry
+
+Firebase Crashlytics
+
+Firebase Analytics
+
+🏁 Final Verdict (If I Were the Architect)
+
+Mobile
+
+React Native (New Arch)
+
+Vision Camera + Reanimated
+
+Zustand + TanStack Query
+
+MMKV + WatermelonDB
+
+Backend
+
+nodejs + mongodb
+
+
+S3 + signed URLs
+
+
+This stack:
+
+Handles long offline walkthroughs
+
+Produces defensible evidence
+
+Scales to enterprise + insurance use
+
+Delivers a premium, smooth, Apple-quality UX
+
+DESIGN:
+BigLogic.ai - Design System & UI/UX Documentation
+1. Design Philosophy
+Theme Name: "Luxury White + Black" (Dark Mode Implementation) Aesthetics: Modern, Minimalist, High-Tech, Glassmorphism. Core Principle: The application runs on a dark canvas (#000000 / #050505) with high-contrast white typography and vibrant neon accents (Indigo/Purple) to signify AI intelligence.
+
+2. Core Color Palette
+The application manually applies dark backgrounds while utilizing standard Tailwind system colors for accents.
+
+Backgrounds
+Global Background: Black (#000000) - Used on Landing Page.
+Dashboard Background: Deep Gray (#050505) - RGB(5, 5, 5).
+Sidebar/Panels: Glass Black (#000000) with opacity (e.g., bg-black/40).
+Card Surface: White/5 (White with 5% opacity).
+RGB: rgba(255, 255, 255, 0.05)
+Primary Accents (Gradients & Highlights)
+The "Brand Gradient" is a flow between Indigo and Purple.
+
+Color Name	Tailwind Class	Hex Code	RGB Value	Usage
+Electric Indigo	text-indigo-400	#818cf8	129, 140, 248	Primary accent text, Icons
+Deep Indigo	bg-indigo-600	#4f46e5	79, 70, 229	Buttons, Active States
+Bright Purple	text-purple-400	#c084fc	192, 132, 252	Secondary accent, Gradients
+Emerald Green	text-emerald-400	#34d399	52, 211, 153	Success states, "Completed"
+Amber/Yellow	text-yellow-400	#facc15	250, 204, 21	Warning, "Processing"
+3. Gradients & Ambient Effects
+Brand Gradient (Text & UI)
+Used for large headings and key highlights.
+
+Direction: Left to Right (bg-gradient-to-r)
+Colors: Indigo-400 (#818cf8) -> Purple-400 (#c084fc)
+CSS: linear-gradient(to right, rgb(129, 140, 248), rgb(192, 132, 252))
+Hero Selection Gradients
+Text Gradient: Top to Bottom (bg-gradient-to-b)
+From White (#FFFFFF) via White (#FFFFFF) to Gray-500 (#6B7280).
+Background Glows (blobs):
+Indigo Orb: bg-indigo-600/20 (20% Opacity)
+Purple Orb: bg-purple-600/20 (20% Opacity)
+Blue Orb: bg-blue-600/10 (10% Opacity)
+Dashboard Context
+Top-Left Ambient: bg-indigo-900/10 (Blur 120px)
+Bottom-Right Ambient: bg-purple-900/10 (Blur 120px)
+4. UI Components
+Buttons
+Landing Page (Hero)
+Primary Action: "Start Automating"
+Background: White (#FFFFFF) -> RGB(255, 255, 255)
+Text: Black (#000000)
+Shadow: shadow-white/10
+Hover: Scale 105%, bg-gray-200
+Secondary Action: "Watch Demo" (Outline)
+Background: bg-white/5 (Backdrop Blur)
+Border: border-white/10
+Text: White
+Dashboard Elements
+Cards: rounded-2xl, border border-white/10, bg-white/5, backdrop-blur-sm.
+Navigation items (Active):
+Background: bg-indigo-600
+Text: White
+Shadow: shadow-indigo-500/25
+Navigation items (Inactive):
+Text: text-gray-400
+Hover: bg-white/5, text-white
+Typography
+Font Family: Inter (Sans-serif).
+Headings: font-bold tracking-tight.
+Body: text-gray-400 (Light Gray for readability on dark bg).
+5. Specific Page Styles
+Home Page (
+Index.tsx
+)
+Base: bg-black
+Overlay: Grid pattern (opacity-20) + Noise texture.
+Fade: bg-gradient-to-b from-black via-transparent to-black (Vignette effect).
+User Company Dashboard (
+Dashboard.tsx
+)
+Base: bg-[#050505]
+Stats Cards:
+Total Workflows: Blue Theme (text-blue-400, bg-blue-500/10).
+Completed: Emerald Theme (text-emerald-400, bg-emerald-500/10).
+Processing: Indigo Theme (text-indigo-400, bg-indigo-500/10).
+Est. Value: Purple Theme (text-purple-400, bg-purple-500/10).
+Tables:
+Header: text-xs text-gray-500 uppercase.
+Row Hover: hover:bg-white/5.
+
+the above design is the website design for this company the client requires the same ui/ux theme colors design like black for background and purple gradient theme including in the bg for highlighting and white for normal and unselected text, purple for selected tabs, and some purple gradient color for main heading and text
+
+I
+FOR NOW I WANT TO JUST BUILT MOBILE APP FRONTENT WITH FUNCTIONALITY DO NOT INCLUDE THE BACKEND , I HAVE DONE THE AI PART PROCESSING USING N8N 
+WEBHOOK LINK https://n8n.srv1116545.hstgr.cloud/webhook-test/56de15fe-5286-4bda-880a-e67c5aa87aa4
+
+
+I WANT TO BUILT THIS PROJECT USING THE REPLIT.COM I HAD SUBSCRIPTION FOR CORE PLAN GIVE ME PROMPT FOR IT BUILDING APP USING MOBILE APP AND PLANNING MODEL

@@ -1,0 +1,25 @@
+{
+  "errorMessage": "projectId [line 18]",
+  "errorDescription": "Missing required key",
+  "errorDetails": {},
+  "n8nDetails": {
+    "nodeName": "Code in JavaScript",
+    "nodeType": "n8n-nodes-base.code",
+    "nodeVersion": 2,
+    "n8nVersion": "1.119.1 (Self Hosted)",
+    "binaryDataMode": "default",
+    "stackTrace": [
+      "Error: Missing required key: projectId",
+      "    at /usr/local/lib/node_modules/n8n/node_modules/.pnpm/n8n-nodes-base@file+packages+nodes-base_@aws-sdk+credential-providers@3.808.0_asn1.js@5_afd197edb2c1f848eae21a96a97fab23/node_modules/n8n-nodes-base/dist/nodes/Code:18:11",
+      "    at /usr/local/lib/node_modules/n8n/node_modules/.pnpm/n8n-nodes-base@file+packages+nodes-base_@aws-sdk+credential-providers@3.808.0_asn1.js@5_afd197edb2c1f848eae21a96a97fab23/node_modules/n8n-nodes-base/dist/nodes/Code:24:2",
+      "    at VM2 Wrapper.apply (/usr/local/lib/node_modules/n8n/node_modules/.pnpm/@n8n+vm2@3.9.25/node_modules/@n8n/vm2/lib/bridge.js:490:11)",
+      "    at NodeVM.run (/usr/local/lib/node_modules/n8n/node_modules/.pnpm/@n8n+vm2@3.9.25/node_modules/@n8n/vm2/lib/nodevm.js:497:23)",
+      "    at JavaScriptSandbox.runCodeAllItems (/usr/local/lib/node_modules/n8n/node_modules/.pnpm/n8n-nodes-base@file+packages+nodes-base_@aws-sdk+credential-providers@3.808.0_asn1.js@5_afd197edb2c1f848eae21a96a97fab23/node_modules/n8n-nodes-base/nodes/Code/JavaScriptSandbox.ts:73:36)",
+      "    at ExecuteContext.execute (/usr/local/lib/node_modules/n8n/node_modules/.pnpm/n8n-nodes-base@file+packages+nodes-base_@aws-sdk+credential-providers@3.808.0_asn1.js@5_afd197edb2c1f848eae21a96a97fab23/node_modules/n8n-nodes-base/nodes/Code/Code.node.ts:210:28)",
+      "    at WorkflowExecute.executeNode (/usr/local/lib/node_modules/n8n/node_modules/.pnpm/n8n-core@file+packages+core_@opentelemetry+api@1.9.0_@opentelemetry+sdk-trace-base@1.30_08b575bec2313d5d8a4cc75358971443/node_modules/n8n-core/src/execution-engine/workflow-execute.ts:1093:31)",
+      "    at WorkflowExecute.runNode (/usr/local/lib/node_modules/n8n/node_modules/.pnpm/n8n-core@file+packages+core_@opentelemetry+api@1.9.0_@opentelemetry+sdk-trace-base@1.30_08b575bec2313d5d8a4cc75358971443/node_modules/n8n-core/src/execution-engine/workflow-execute.ts:1274:22)",
+      "    at /usr/local/lib/node_modules/n8n/node_modules/.pnpm/n8n-core@file+packages+core_@opentelemetry+api@1.9.0_@opentelemetry+sdk-trace-base@1.30_08b575bec2313d5d8a4cc75358971443/node_modules/n8n-core/src/execution-engine/workflow-execute.ts:1708:38",
+      "    at processTicksAndRejections (node:internal/process/task_queues:105:5)"
+    ]
+  }
+}
