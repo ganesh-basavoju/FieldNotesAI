@@ -226,25 +226,31 @@ function setupErrorHandler(app: express.Application) {
   });
 }
 
-(async () => {
-  setupCors(app);
-  setupBodyParsing(app);
-  setupRequestLogging(app);
+setupCors(app);
+setupBodyParsing(app);
+setupRequestLogging(app);
 
-  configureExpoAndLanding(app);
+configureExpoAndLanding(app);
 
-  const server = await registerRoutes(app);
+// Register routes (returns a Promise<Server>)
+const serverPromise = registerRoutes(app);
 
-  setupErrorHandler(app);
+setupErrorHandler(app);
 
+// Export for Vercel (must be top-level)
+export default app;
+
+if (process.env.NODE_ENV !== "production" && !process.env.VERCEL) {
   const port = parseInt(process.env.PORT || "5000", 10);
-  server.listen(
-    {
-      port,
-      host: "0.0.0.0",
-    },
-    () => {
-      log(`express server serving on port ${port}`);
-    },
-  );
-})();
+  serverPromise.then((server) => {
+    server.listen(
+      {
+        port,
+        host: "0.0.0.0",
+      },
+      () => {
+        log(`express server serving on port ${port}`);
+      },
+    );
+  });
+}
