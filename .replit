@@ -72,3 +72,10 @@ task = "shell.exec"
 args = "npm run expo:dev"
 waitForPort = 8081
 ensurePreviewReachable = "/status"
+
+[userenv]
+
+[userenv.shared]
+AWS_REGION = "us-east-1"
+AWS_BUCKET_NAME = "fieldnotes-bucket"
+N8N_WEBHOOK_URL = "https://n8n.srv1234562.hstgr.cloud/webhook/c42e858c-d96e-4761-aebf-b364cf62a132"
