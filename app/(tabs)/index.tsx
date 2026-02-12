@@ -66,8 +66,8 @@ export default function DashboardScreen() {
           <View style={styles.header}>
             <View style={styles.titleRow}>
               <View>
-                <Text style={styles.greeting}>FieldCapture</Text>
-                <Text style={styles.subtitle}>Pro</Text>
+                <Text style={styles.greeting}>BigLogicAI</Text>
+                <Text style={styles.subtitle}>AI Powered Field Notes</Text>
               </View>
               <Pressable
                 onPress={() => {

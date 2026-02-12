@@ -172,7 +172,7 @@ export interface AppSettings {
 const DEFAULT_SETTINGS: AppSettings = {
   wifiOnlyUpload: true,
   autoSync: true,
-  webhookUrl: 'https://n8n.srv1234562.hstgr.cloud/webhook/56de15fe-5286-4bda-880a-e67c5aa87aa4',
+  webhookUrl: 'https://n8n.srv1234562.hstgr.cloud/webhook/c42e858c-d96e-4761-aebf-b364cf62a132',
 };
 
 export const SettingsStorage = {
