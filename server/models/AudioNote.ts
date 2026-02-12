@@ -41,7 +41,7 @@ const AudioNoteSchema = new Schema<IAudioNote>(
 );
 
 AudioNoteSchema.set("toJSON", {
-  transform: (_doc, ret) => {
+  transform: (_doc: any, ret: any) => {
     ret.id = ret._id.toString();
     delete ret.__v;
     return ret;
