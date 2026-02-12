@@ -1,0 +1,96 @@
+# Replit Backend Implementation Prompt
+
+**Role:** You are an expert Backend Engineer specializing in Node.js, Express, MongoDB Atlas, and AWS S3.
+
+**Task:** Re-implement the `server/` directory of this existing project to use a full production stack instead of the current in-memory storage.
+
+**Technologies to Use:**
+*   Node.js (LTS)
+*   Express.js
+*   MongoDB Atlas (Mongoose ORM)
+*   AWS S3 (via `@aws-sdk/client-s3`)
+*   JWT (jsonwebtoken) + bcryptjs for Authentication
+*   TypeScript
+
+**Database Connection String:**
+`mongodb+srv://basavojuganesh:ganeshbasavoju@aifieldnotes.bzfokoi.mongodb.net/?appName=aifieldnotes`
+
+**AWS S3 Config (Use as placeholders):**
+*   Key ID: `TEST_KEY_ID`
+*   Secret: `TEST_SECRET_KEY`
+*   Region: `us-east-1`
+*   Bucket: `fieldnotes-bucket`
+
+**N8N Webhook URL:**
+`https://n8n.srv1234562.hstgr.cloud/webhook/c42e858c-d96e-4761-aebf-b364cf62a132`
+
+---
+
+## 1. Directory Structure Changes
+Delete existing `storage.ts` and `routes.ts`. Create the following structure inside `server/`:
+```
+server/
+  ├── index.ts           (Entry point, update to connect to Mongo)
+  ├── db.ts              (Mongoose connection logic)
+  ├── middleware/
+  │   └── auth.ts        (JWT verification middleware)
+  ├── models/            (Mongoose Schemas)
+  │   ├── User.ts
+  │   ├── Project.ts
+  │   ├── Task.ts        (Includes EvidenceLinks logic)
+  │   └── Media.ts
+  ├── routes/
+  │   ├── auth.ts        (Login/Register)
+  │   ├── projects.ts    (CRUD)
+  │   ├── sync.ts        (Handle offline sync batches)
+  │   └── storage.ts     (S3 presigned URLs)
+  └── services/
+      └── s3.ts          (AWS SDK helper)
+```
+
+## 2. API Specifications
+
+### A. Authentication (JWT)
+*   **POST /api/auth/register**: `{ username, password }` -> Returns `{ token, user }`
+*   **POST /api/auth/login**: `{ username, password }` -> Returns `{ token, user }`
+
+### B. Storage (AWS S3)
+*   **POST /api/storage/presigned-url**:
+    *   Auth: Required
+    *   Body: `{ fileName: string, fileType: string }`
+    *   Action: Generate a PUT presigned URL for 5 minutes.
+    *   Response: `{ uploadUrl, publicUrl, key }`
+
+### C. Sync & Data (Critical)
+*   **POST /api/sync**:
+    *   Auth: Required
+    *   Body: `{ projects: [], tasks: [], media: [], audioNotes: [] }` (Arrays of new items)
+    *   Action:
+        1.  Validate user owns the projects.
+        2.  Bulk insert/upsert data into MongoDB.
+        3.  **Trigger N8N:** For every new `AudioNote`, send a POST request to the N8N Webhook URL with `{ audioUrl, projectId, sessionId }`.
+
+### D. Webhooks (Receiving AI Results)
+*   **POST /api/webhooks/n8n**:
+    *   Body: The JSON output from N8N (Tasks, Daily Log, Issues).
+    *   Action:
+        1.  Find the `AudioNote` or `Session` by ID.
+        2.  Create/Update `Task` documents in MongoDB.
+        3.  **Crucial:** The N8N output nests links (`linkMediaAssetIds`) inside tasks. You MUST extract these and create `EvidenceLink` documents/objects in the database effectively.
+
+## 3. Data Models (Mongoose)
+
+Use strict typing.
+*   **User:** `username`, `password`
+*   **Project:** `name`, `address`, `clientName`, `users: [ref]`
+*   **Task:** `title`, `description`, `status` ('open'|'in_progress'|'done'), `priority`, `tags` [String], `evidenceLinks` [{ targetId, targetType }]
+
+## 4. Implementation Steps for You (The AI)
+
+1.  **Install Packages:** Run `npm install mongoose @aws-sdk/client-s3 @aws-sdk/s3-request-presigner jsonwebtoken bcryptjs cors dotenv`.
+2.  **Setup Database:** Initialize Mongoose in `server/db.ts`.
+3.  **Create Schemas:** defined in `server/models/*.ts`.
+4.  **Implement Routes:** Create the files in `server/routes/`.
+5.  **Wire up Server:** Update `server/index.ts` to use `app.use('/api/auth', authRoutes)`, etc.
+
+**Execute this plan now.**

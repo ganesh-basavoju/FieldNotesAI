@@ -1,0 +1,109 @@
+# FieldNotesAI Backend Implementation Plan
+
+This plan outlines the creation of a production-ready backend using **Node.js, Express, MongoDB Atlas, and AWS S3** to replace the current minimal server.
+
+## 1. Technology Stack & Architecture
+
+*   **Runtime:** Node.js (v20+)
+*   **Framework:** Express.js
+*   **Database:** MongoDB Atlas (Mongoose ORM)
+*   **Storage:** AWS S3 (via `@aws-sdk/client-s3`)
+*   **Authentication:** JSON Web Tokens (JWT) + bcrypt
+*   **Language:** TypeScript
+*   **AI orchestration:** Webhooks to/from N8N
+
+## 2. Database Schema (Mongoose)
+
+We will mirror the frontend types from `lib/types.ts` into Mongoose schemas.
+
+### Core Collections
+
+1.  **Users**
+    *   `username`, `password` (hashed), `role` (admin/user)
+2.  **Projects**
+    *   `name`, `address`, `clientName`, `userId` (owner)
+    *   `stats`: { `mediaCount`, `taskCount` }
+3.  **Areas**
+    *   `projectId`, `type`, `label`
+4.  **MediaAssets**
+    *   `projectId`, `areaId`, `type` (photo/video), `s3Key`, `url`, `thumbnailUrl`
+    *   `metadata`: { `tags`: [] }
+5.  **AudioNotes**
+    *   `projectId`, `areaId`, `s3Key`, `url`, `durationMs`
+    *   `transcript`: String (simple) or linked segments
+6.  **TranscriptSegments**
+    *   `audioNoteId`, `text`, `startTime`, `endTime`, `confidence`, `speaker`
+7.  **Tasks**
+    *   `projectId`, `title`, `description`, `status`, `priority`, `dueDate`
+    *   `tags`: []
+    *   `aiGenerated`: boolean
+8.  **EvidenceLinks**
+    *   `taskId`, `targetType` (media/audio), `targetId`, `score`
+
+## 3. API Routes Structure
+
+prefix: `/api`
+
+### Auth
+*   `POST /auth/register`: Create account
+*   `POST /auth/login`: Return JWT
+
+### Projects & Areas
+*   `GET /projects`: List user's projects
+*   `POST /projects`: Create new
+*   `GET /projects/:id`: Details + Areas
+*   `POST /projects/:id/areas`: Add area
+
+### Media & Storage (S3)
+*   `POST /storage/presigned-url`: Get a signed URL to upload files directly to S3 from the app (Architecture Best Practice).
+    *   Input: `{ fileName, fileType }`
+    *   Output: `{ uploadUrl, publicUrl, s3Key }`
+*   `POST /media`: Register the media asset in MongoDB after successful upload.
+
+### Sync & Webhooks
+*   **`POST /sync/batch`**: The mobile app sends a bundle of offline changes (new projects, media metadata, tasks).
+    *   Validation: Ensure all referenced S3 keys exist.
+    *   Trigger: If `AudioNote` is synced, **trigger the N8N webhook** URL.
+*   **`POST /webhooks/n8n`**: Endpoint for N8N to call back with analysis results.
+    *   Action: Update `Tasks`, `TranscriptSegments`, and `EvidenceLinks` in MongoDB.
+
+## 4. Migration Steps (from current code)
+
+1.  **Install Dependencies:**
+    ```bash
+    npm install mongoose @aws-sdk/client-s3 jsonwebtoken bcryptjs cors dotenv
+    npm install -D @types/mongoose @types/jsonwebtoken @types/bcryptjs
+    ```
+2.  **Setup Logic:**
+    *   Replace `storage.ts` (in-memory) with `db.ts` (Mongoose connection).
+    *   Create `models/` folder for schemas.
+    *   Create `middleware/auth.ts` for JWT verification.
+
+## 5. N8N Integration Detail
+
+*   **Trigger:** When `POST /sync/batch` receives a new `AudioNote`, the backend will:
+    1.  Fetch the file URL from S3.
+    2.  Send a payload to N8N: `{ audioUrl, projectId, sessionId, ... }`.
+*   **Callback:** N8N will process and POST back to `/api/webhooks/n8n`.
+    1.  Backend receives JSON (Tasks, Issues).
+    2.  Backend transforms nested `linkMediaAssetIds` into `EvidenceLink` documents.
+    3.  Backend saves Tasks and Links to MongoDB.
+
+## 6. AWS S3 Configuration
+
+*   **Bucket Name:** `fieldnotes-assets` (example)
+*   **Region:** `us-east-1`
+*   **Policies:** Block public access (use presigned URLs for read/write or CloudFront).
+
+## 7. Configuration (.env)
+
+```
+PORT=5000
+MONGODB_URI=mongodb+srv://basavojuganesh:ganeshbasavoju@aifieldnotes.bzfokoi.mongodb.net/?appName=aifieldnotes
+JWT_SECRET=your-secret-key-change-me
+AWS_ACCESS_KEY_ID=test-key
+AWS_SECRET_ACCESS_KEY=test-secret
+AWS_REGION=us-east-1
+AWS_BUCKET_NAME=fieldnotes-dev
+N8N_WEBHOOK_URL=https://n8n.srv1234562.hstgr.cloud/webhook/...
+```
