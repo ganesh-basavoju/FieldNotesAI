@@ -1,6 +1,6 @@
 import type { Express } from "express";
 import { createServer, type Server } from "node:http";
-import { connectDB } from "./db";
+import { connectDB, isDBConnected } from "./db";
 import authRoutes from "./routes/auth";
 import projectRoutes from "./routes/projects";
 import taskRoutes from "./routes/tasks";
@@ -9,7 +9,9 @@ import syncRoutes from "./routes/sync";
 import webhookRoutes from "./routes/webhook";
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  await connectDB();
+  connectDB().catch((err) => {
+    console.error("Initial MongoDB connection failed:", err.message);
+  });
 
   app.use("/api/auth", authRoutes);
   app.use("/api/projects", projectRoutes);
@@ -19,7 +21,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use("/api/webhook", webhookRoutes);
 
   app.get("/api/health", (_req, res) => {
-    res.json({ status: "ok", timestamp: new Date().toISOString() });
+    res.json({
+      status: "ok",
+      database: isDBConnected() ? "connected" : "disconnected",
+      timestamp: new Date().toISOString(),
+    });
   });
 
   const httpServer = createServer(app);
