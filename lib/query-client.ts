@@ -9,7 +9,7 @@ export function getApiUrl(): string {
   let host = process.env.EXPO_PUBLIC_DOMAIN;
 
   if (!host) {
-    throw new Error("EXPO_PUBLIC_DOMAIN is not set");
+    return "http://localhost:5000";
   }
 
   let url = new URL(`https://${host}`);
