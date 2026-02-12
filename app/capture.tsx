@@ -19,8 +19,9 @@ import { LinearGradient } from "expo-linear-gradient";
 import Colors from "@/constants/colors";
 import { useAppStore } from "@/lib/store";
 import { AreaSelector } from "@/components/AreaSelector";
+import { MeetingSetup } from "@/components/MeetingSetup";
 import { sendSessionToWebhook } from "@/lib/sync-service";
-import type { AreaType, CaptureMode } from "@/lib/types";
+import type { AreaType, CaptureMode, MeetingMetadata } from "@/lib/types";
 
 const MODE_CONFIG: Record<CaptureMode, { icon: keyof typeof Ionicons.glyphMap; label: string; description: string }> = {
   photo_speak: { icon: "camera-outline", label: "Photo + Speak", description: "Take photo, then record voice note" },
@@ -43,6 +44,8 @@ export default function CaptureScreen() {
   const addAudioToSession = useAppStore((s) => s.addAudioToSession);
 
   const [mode, setMode] = useState<CaptureMode>("photo_speak");
+  const [isMeetingMode, setIsMeetingMode] = useState(false);
+  const [showMeetingSetup, setShowMeetingSetup] = useState(false);
   const [selectedArea, setSelectedArea] = useState<AreaType | null>(null);
   const [isRecording, setIsRecording] = useState(false);
   const [recordingDuration, setRecordingDuration] = useState(0);
@@ -168,6 +171,26 @@ export default function CaptureScreen() {
     const session = await startSession(currentProjectId, currentArea.id, selectedArea, mode);
     setSessionId(session.id);
     return session.id;
+  };
+
+  const handleMeetingStart = async (metadata: MeetingMetadata) => {
+    if (!selectedArea || !currentProjectId || !currentArea) {
+      Alert.alert("Select Area", "Please select an area before starting a meeting.");
+      setShowMeetingSetup(false);
+      return;
+    }
+    const session = await startSession(
+      currentProjectId,
+      currentArea.id,
+      selectedArea,
+      "voice_only",
+      "meeting",
+      metadata
+    );
+    setSessionId(session.id);
+    setCapturedCount(0);
+    setShowMeetingSetup(false);
+    setMode("voice_only");
   };
 
   const saveMedia = async (uri: string, type: "photo" | "video") => {
@@ -319,15 +342,39 @@ export default function CaptureScreen() {
             key={key}
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              setIsMeetingMode(false);
               setMode(key);
             }}
-            style={[styles.modeChip, mode === key && styles.modeChipActive]}
+            style={[styles.modeChip, !isMeetingMode && mode === key && styles.modeChipActive]}
+            testID={`mode-${key}`}
           >
-            <Ionicons name={config.icon} size={16} color={mode === key ? "#FFF" : Colors.dark.textMuted} />
-            <Text style={[styles.modeLabel, mode === key && styles.modeLabelActive]}>{config.label}</Text>
+            <Ionicons name={config.icon} size={16} color={!isMeetingMode && mode === key ? "#FFF" : Colors.dark.textMuted} />
+            <Text style={[styles.modeLabel, !isMeetingMode && mode === key && styles.modeLabelActive]}>{config.label}</Text>
           </Pressable>
         ))}
+        <Pressable
+          onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            setIsMeetingMode(true);
+            setShowMeetingSetup(true);
+          }}
+          style={[styles.modeChip, isMeetingMode && styles.modeChipActive]}
+          testID="mode-meeting"
+        >
+          <Ionicons name="people-outline" size={16} color={isMeetingMode ? "#FFF" : Colors.dark.textMuted} />
+          <Text style={[styles.modeLabel, isMeetingMode && styles.modeLabelActive]}>Site Meeting</Text>
+        </Pressable>
       </View>
+
+      <MeetingSetup
+        visible={showMeetingSetup}
+        onClose={() => {
+          setShowMeetingSetup(false);
+          if (!sessionId) setIsMeetingMode(false);
+        }}
+        onStart={handleMeetingStart}
+        projectName={project?.name || ""}
+      />
 
       <View style={styles.captureArea}>
         {isRecording ? (
@@ -493,12 +540,14 @@ const styles = StyleSheet.create({
   },
   modeSelector: {
     flexDirection: "row",
+    flexWrap: "wrap",
     paddingHorizontal: 20,
     gap: 8,
     marginBottom: 16,
   },
   modeChip: {
-    flex: 1,
+    flexBasis: "47%",
+    flexGrow: 1,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",

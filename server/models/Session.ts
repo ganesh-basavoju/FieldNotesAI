@@ -7,12 +7,23 @@ export interface ISession extends Document {
   areaId: mongoose.Types.ObjectId;
   areaType: string;
   mode: string;
+  sessionType: string;
   startedAt: Date;
   endedAt?: Date;
   mediaIds: string[];
   audioIds: string[];
   webhookStatus: string;
   webhookResult?: Record<string, unknown>;
+  meetingMetadata?: {
+    meetingType: string;
+    participants: { name: string; role: string; email?: string }[];
+    consentGiven: boolean;
+    consentMethod: string;
+    consentTimestamp: Date;
+  };
+  approvalStatus?: string;
+  approvedAt?: Date;
+  approvedBy?: mongoose.Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -24,12 +35,27 @@ const SessionSchema = new Schema<ISession>(
     areaId: { type: Schema.Types.ObjectId, ref: "Area", required: true },
     areaType: { type: String, required: true },
     mode: { type: String, required: true, enum: ["photo_speak", "walkthrough", "voice_only"] },
+    sessionType: { type: String, default: "walkthrough", enum: ["walkthrough", "meeting"] },
     startedAt: { type: Date, required: true },
     endedAt: { type: Date },
     mediaIds: [{ type: String }],
     audioIds: [{ type: String }],
     webhookStatus: { type: String, default: "pending", enum: ["pending", "sent", "received", "failed"] },
     webhookResult: { type: Schema.Types.Mixed },
+    meetingMetadata: {
+      meetingType: { type: String, enum: ["scope", "schedule", "material", "vendor", "internal"] },
+      participants: [{
+        name: { type: String },
+        role: { type: String, enum: ["pm", "sub", "owner", "vendor", "internal"] },
+        email: { type: String },
+      }],
+      consentGiven: { type: Boolean },
+      consentMethod: { type: String, enum: ["verbal", "written", "contract"] },
+      consentTimestamp: { type: Date },
+    },
+    approvalStatus: { type: String, enum: ["pending", "approved", "rejected"] },
+    approvedAt: { type: Date },
+    approvedBy: { type: Schema.Types.ObjectId, ref: "User" },
   },
   { timestamps: true }
 );

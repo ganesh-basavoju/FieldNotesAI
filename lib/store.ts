@@ -25,10 +25,16 @@ import type {
   TaskStatus,
   TaskPriority,
   SyncStatus,
+  AuthUser,
+  SessionType,
+  MeetingMetadata,
 } from './types';
 import { generateId } from './generate-id';
 
 interface AppState {
+  authToken: string | null;
+  currentUser: AuthUser | null;
+
   projects: Project[];
   currentProjectId: string | null;
   currentAreaId: string | null;
@@ -41,6 +47,10 @@ interface AppState {
   transcripts: TranscriptSegment[];
   settings: AppSettings;
   isLoading: boolean;
+
+  login: (token: string, user: AuthUser) => void;
+  logout: () => void;
+  setAuth: (token: string | null, user: AuthUser | null) => void;
 
   loadAll: () => Promise<void>;
 
@@ -66,7 +76,14 @@ interface AppState {
   addEvidenceLink: (link: Omit<EvidenceLink, 'id' | 'createdAt'>) => Promise<EvidenceLink>;
   removeEvidenceLink: (id: string) => Promise<void>;
 
-  startSession: (projectId: string, areaId: string, areaType: AreaType, mode: CaptureMode) => Promise<CaptureSession>;
+  startSession: (
+    projectId: string,
+    areaId: string,
+    areaType: AreaType,
+    mode: CaptureMode,
+    sessionType?: SessionType,
+    meetingMetadata?: MeetingMetadata
+  ) => Promise<CaptureSession>;
   endSession: (id: string) => Promise<void>;
   addMediaToSession: (sessionId: string, mediaId: string) => Promise<void>;
   addAudioToSession: (sessionId: string, audioId: string) => Promise<void>;
@@ -77,6 +94,9 @@ interface AppState {
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
+  authToken: null,
+  currentUser: null,
+
   projects: [],
   currentProjectId: null,
   currentAreaId: null,
@@ -93,6 +113,18 @@ export const useAppStore = create<AppState>((set, get) => ({
     webhookUrl: 'https://n8n.srv1234562.hstgr.cloud/webhook/56de15fe-5286-4bda-880a-e67c5aa87aa4',
   },
   isLoading: true,
+
+  login: (token, user) => {
+    set({ authToken: token, currentUser: user });
+  },
+
+  logout: () => {
+    set({ authToken: null, currentUser: null });
+  },
+
+  setAuth: (token, user) => {
+    set({ authToken: token, currentUser: user });
+  },
 
   loadAll: async () => {
     set({ isLoading: true });
@@ -257,17 +289,20 @@ export const useAppStore = create<AppState>((set, get) => ({
     set((s) => ({ evidenceLinks: s.evidenceLinks.filter((l) => l.id !== id) }));
   },
 
-  startSession: async (projectId, areaId, areaType, mode) => {
+  startSession: async (projectId, areaId, areaType, mode, sessionType = 'walkthrough', meetingMetadata) => {
     const session: CaptureSession = {
       id: generateId(),
       projectId,
       areaId,
       areaType,
       mode,
+      sessionType,
       startedAt: Date.now(),
       mediaIds: [],
       audioIds: [],
       webhookStatus: 'pending',
+      meetingMetadata,
+      approvalStatus: sessionType === 'meeting' ? 'pending' : undefined,
     };
     await SessionStorage.add(session);
     set((s) => ({ sessions: [...s.sessions, session] }));

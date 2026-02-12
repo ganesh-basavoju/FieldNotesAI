@@ -8,6 +8,7 @@ node_modules/
 dist/
 web-build/
 expo-env.d.ts
+static-build/
 
 # Native
 ios/
@@ -31,11 +32,24 @@ yarn-error.*
 .DS_Store
 *.pem
 
-# local env files
+# Environment variables - NEVER commit these!
+.env
+.env.local
+.env.development
+.env.production
 .env*.local
+
+# Server build output
+server_dist/
 
 # typescript
 *.tsbuildinfo
 .vercel
 
-.env
+# Logs
+*.log
+logs/
+
+# Editor
+.vscode/settings.json
+.idea/

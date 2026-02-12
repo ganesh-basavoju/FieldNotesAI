@@ -1,0 +1,62 @@
+# Replit Prompt: Phase 2 (Frontend Auth & Sync Integration)
+
+**Role:** You are an expert Full-Stack Engineer working on a React Native (Expo) app with a Node.js/Express/MongoDB backend.
+
+**Context:**
+The backend core (Auth, Projects, Tasks, Media, S3, Webhook) is **already built and running**. The database schemas are set up with Mongoose.
+However, the **Frontend** is still disconnected (offline-only) and missing Authentication screens. The Sync logic is currently pointing to an external N8N webhook directly, instead of your new backend API.
+
+**Task:** Complete the Frontend integration and refine the Backend webhook handler.
+
+---
+
+## Feature 1: Frontend Authentication (Login/Register)
+
+**Objective:** Create Login and Register screens in React Native and integrate with the backend JWT auth.
+
+**Instructions:**
+1.  **Install:** `npm install expo-secure-store`
+2.  **Create Screens:**
+    *   `app/(auth)/login.tsx`: Email/Password inputs, "Login" button.
+    *   `app/(auth)/register.tsx`: Username/Password inputs, "Register" button.
+    *   Style them beautifully using `react-native` StyleSheet and `expo-linear-gradient` (match existing dark theme).
+3.  **Update Store (`lib/store.ts`):**
+    *   Add `authToken: string | null` and `currentUser: User | null` to the store.
+    *   Add actions: `login(token, user)`, `logout()`.
+    *   Persist token using `SecureStore`.
+4.  **Protect Routes (`app/_layout.tsx`):**
+    *   Check `authToken` on mount.
+    *   If null, redirect to `(auth)/login`.
+
+## Feature 2: Refactor Sync Service (`lib/sync-service.ts`)
+
+**Objective:** Change sync logic to upload to S3 (via backend presigned URL) and sync metadata to your backend API.
+
+**Instructions:**
+1.  Refactor `sendSessionToWebhook(sessionId)` to perform these steps instead of the old logic:
+    *   **Loop through Media/Audio:**
+        *   Call `POST /api/storage/presigned-url` to get an upload URL.
+        *   Upload file binary to S3 `PUT {uploadUrl}`.
+        *   Construct metadata object with the returned S3 `key`.
+    *   **Sync Batch:**
+        *   Call `POST /api/sync/batch` with the session data, media metadata (with keys), and new offline tasks.
+
+## Feature 3: Backend Webhook Refinement (Critical)
+
+**Objective:** Handle the nested evidence links returned by N8N.
+
+**Instructions:**
+1.  In `server/routes/webhook.ts` (or wherever `POST /webhooks/n8n` is defined):
+    *   When processing the `tasks` array from the N8N payload:
+        *   **Extract:** `linkMediaAssetIds` and `linkTranscriptSegmentIds`.
+        *   **Create:** New `EvidenceLink` documents in MongoDB for each ID found (`taskId`, `targetId`, `linkType`).
+        *   **Save:** The Task document *without* these temporary arrays.
+
+## Execute
+
+Please generate the code for:
+1.  `app/(auth)/login.tsx`
+2.  `app/(auth)/register.tsx`
+3.  Updates to `lib/store.ts` (Auth slice)
+4.  Refactored `lib/sync-service.ts`
+5.  Updates to `server/routes/webhook.ts` (Link handling logic)

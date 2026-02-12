@@ -1,0 +1,59 @@
+# Pending Features Implementation Guide (Phase 2)
+
+This document outlines the steps to complete the integration between the new Node.js/MongoDB backend and the React Native frontend, addressing the remaining gaps.
+
+## 1. Frontend Authentication (Sign In / Sign Up)
+
+**Current Status:** Missing. The app likely starts directly at the home screen or uses a mock user.
+**Goal:** Implement real JWT authentication.
+
+### Implementation Steps:
+1.  **Auth Context/Store:** Update `lib/store.ts` to handle `authToken` and `user` state.
+    *   Persist token to `SecureStore` (Expo) or `AsyncStorage`.
+2.  **Screens:** Create `app/(auth)/login.tsx` and `app/(auth)/register.tsx`.
+3.  **Navigation Protection:** Update `app/_layout.tsx` to check for `authToken`. If missing, redirect to `(auth)/login`.
+
+### API Integration:
+*   **Login:** `POST /api/auth/login` -> Store `{ token, user }`.
+*   **Register:** `POST /api/auth/register` -> Store `{ token, user }`.
+
+## 2. Sync Service Refactor (The "Engine" Swap)
+
+**Current Status:** `lib/sync-service.ts` uploads directly to N8N webhook.
+**Goal:** Upload to S3 (via Backend) and sync metadata to Backend.
+
+### New Workflow:
+1.  **Get Presigned URL:** Call `POST /api/storage/presigned-url` for each media file.
+2.  **Upload to S3:** `PUT` the file content to the returned `uploadUrl`.
+3.  **Sync Metadata:** Call `POST /api/sync/batch` with:
+    *   Media metadata (referencing S3 keys).
+    *   Audio notes (referencing S3 keys).
+    *   New Projects/Tasks created offline.
+4.  **Backend Trigger:** The Backend (not Frontend) now calls N8N.
+
+## 3. Evidence Linking Refinement (Backend)
+
+**Current Status:** N8N returns links nested inside Tasks. Frontend expects `EvidenceLinks`.
+**Goal:** Backend middleware must transform this data.
+
+### Logic in `POST /api/webhooks/n8n`:
+When N8N calls this endpoint with the JSON result:
+1.  Iterate through `tasks` array.
+2.  For each task, extract:`linkMediaAssetIds` and `linkTranscriptSegmentIds`.
+3.  **Create separate `EvidenceLink` documents** in MongoDB for each ID found.
+    *   `taskId`: The ID of the task being processed.
+    *   `targetId`: The ID from the array.
+    *   `targetType`: 'media' or 'transcript'.
+    *   `createdBy`: 'system'.
+4.  Save the Task *without* the nested arrays (to keep schema clean).
+
+## 4. Frontend "Review UI" Connection
+
+**Current Status:** `EvidenceLinkStorage` exists but needs to be populated from the backend.
+**Goal:** Ensure `GET /api/sync/pull` (or similar) fetches these new server-created links so they appear in the UI.
+
+---
+
+## Detailed Replit Instructions
+
+Use the accompanying `replit_prompt_phase2.md` to instruct the AI to build these specific components.

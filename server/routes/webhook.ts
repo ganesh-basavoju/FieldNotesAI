@@ -31,6 +31,9 @@ router.post("/n8n-callback", async (req: Request, res: Response) => {
 
     if (result.tasks && Array.isArray(result.tasks)) {
       for (const task of result.tasks) {
+        const linkMediaAssetIds = task.linkMediaAssetIds || [];
+        const linkTranscriptSegmentIds = task.linkTranscriptSegmentIds || [];
+
         const newTask = new Task({
           userId: session.userId,
           projectId: session.projectId,
@@ -45,6 +48,32 @@ router.post("/n8n-callback", async (req: Request, res: Response) => {
           confidence: task.confidence,
         });
         await newTask.save();
+
+        for (const mediaId of linkMediaAssetIds) {
+          const evidenceLink = new EvidenceLink({
+            userId: session.userId,
+            taskId: newTask._id,
+            targetType: "media",
+            targetId: mediaId,
+            linkType: "suggested",
+            linkScore: task.confidence || 0.5,
+            createdBy: "system",
+          });
+          await evidenceLink.save();
+        }
+
+        for (const segmentId of linkTranscriptSegmentIds) {
+          const evidenceLink = new EvidenceLink({
+            userId: session.userId,
+            taskId: newTask._id,
+            targetType: "transcript",
+            targetId: segmentId,
+            linkType: "suggested",
+            linkScore: task.confidence || 0.5,
+            createdBy: "system",
+          });
+          await evidenceLink.save();
+        }
       }
 
       const totalCount = await Task.countDocuments({ projectId: session.projectId });

@@ -7,6 +7,7 @@ import taskRoutes from "./routes/tasks";
 import storageRoutes from "./routes/storage";
 import syncRoutes from "./routes/sync";
 import webhookRoutes from "./routes/webhook";
+import sessionRoutes from "./routes/sessions";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   connectDB().catch((err) => {
@@ -19,6 +20,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use("/api/storage", storageRoutes);
   app.use("/api/sync", syncRoutes);
   app.use("/api/webhook", webhookRoutes);
+  app.use("/api/sessions", sessionRoutes);
 
   app.get("/api/health", (_req, res) => {
     res.json({

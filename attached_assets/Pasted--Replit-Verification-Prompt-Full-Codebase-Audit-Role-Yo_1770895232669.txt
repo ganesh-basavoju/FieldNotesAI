@@ -1,0 +1,64 @@
+# Replit Verification Prompt: Full Codebase Audit
+
+**Role:** You are a Senior Software Architect and QA Engineer reviewing a React Native (Expo) + Node.js (Express/MongoDB) application.
+
+**Context:**
+The codebase has recently undergone significant changes to implement:
+1.  **Phase 1:** "Site Meeting" mode with Consent, Participants, and Email Dispatch.
+2.  **Phase 2:** "Field Capture" mode with Photo/Voice Notes, Offline Sync, and Evidence Linking.
+3.  **App Infrastructure:** Auth (JWT), Secure Storage, AWS S3 Uploads (Presigned URLs), and N8N Webhook Integration.
+
+**Task:**
+Perform a comprehensive audit of the `client` (app/) and `server` (server/) code to verify all features are implemented, error-free, and follow best practices.
+
+---
+
+## 1. Feature Verification Checklist
+
+Please check the following files and logic flows. Report on any missing files or logic errors.
+
+### A. Authentication & User Management
+*   [ ] **Frontend:** `app/(auth)/login.tsx` & `register.tsx` exist and use `store.login()`.
+*   [ ] **Store:** `lib/store.ts` handles `authToken` persistence via `SecureStore`.
+*   [ ] **Backend:** `server/routes/auth.ts` implements `login` and `register` with bcrypt/jwt.
+*   [ ] **Middleware:** `server/middleware/auth.ts` correctly protects private routes.
+
+### B. "Site Meeting" Mode (Phase 1)
+*   [ ] **Schema:** `server/models/Session.ts` includes `participants`, `consent`, `meetingType`.
+*   [ ] **UI:** `components/MeetingSetup.tsx` (or equivalent) exists and captures consent.
+*   [ ] **Flow:** `app/capture.tsx` (or similar) launches Meeting Mode properly.
+*   [ ] **Dispatch:** `server/routes/sessions.ts` has an `/approve` or `/dispatch` endpoint for emailing notes.
+
+### C. "Field Capture" & Sync (Phase 2)
+*   [ ] **Capture:** `app/capture.tsx` handles Photo+Speak and Walkthrough modes.
+*   [ ] **Sync Service:** `lib/sync-service.ts`:
+    *   Requests Presigned URL from Backend (`POST /api/storage/presigned-url`).
+    *   Uploads file to S3 (`PUT ...`).
+    *   Sends metadata to Backend (`POST /api/sync/batch`).
+*   [ ] **Backend Sync:** `server/routes/sync.ts` receives batch and saves to MongoDB.
+*   [ ] **N8N Trigger:** Backend triggers N8N webhook *after* successful sync.
+
+### D. AI & Linking Logic
+*   [ ] **Webhook Handler:** `server/routes/webhook.ts` (receiving N8N results).
+*   [ ] **Link Extraction:** Logic exists to parse `linkMediaAssetIds` from N8N tasks and create `EvidenceLink` documents.
+
+## 2. Code Quality & Error Handling
+
+*   **Type Safety:** Are `lib/types.ts` and Mongoose Schemas (`server/models/*.ts`) aligned?
+*   **Env Vars:** Check if `process.env` usage matches `.env` (MONGO_URI, AWS_KEYS, JWT_SECRET).
+*   **Error Handling:** Do API routes use `try/catch` and return 500s?
+
+## 3. Improvement Suggestions
+
+After verifying the code, provide **3 specific recommendations** to improve:
+1.  **Performance:** (e.g., specific indexing needed in MongoDB).
+2.  **Reliability:** (e.g., retry logic for S3 uploads or N8N calls).
+3.  **UX:** (e.g., optimistic UI updates for Task creation).
+
+## Output Format
+
+Please provide a report in this format:
+1.  **Verification Status:** [PASS / FAIL] for each feature.
+2.  **Issues Found:** Bullet points of specific file/line errors or missing logic.
+3.  **Fix Code Snippets:** Correct code for any critical bugs found.
+4.  **Recommendations:** Your top 3 improvements.

@@ -1,0 +1,70 @@
+# Replit Prompt: Phase 1 (Meetings & Consent) Integration
+
+**Role:** You are an expert Full-Stack Engineer merging a new "Site Meeting" module into an existing Field Capture app.
+
+**Context:**
+The core app captures Photos/Video/Audio and creates Tasks (Phase 2). Now we need to add formal "Recorded Meetings" (Phase 1).
+This involves capturing Consent, tracking Participants, and generating formal structured meeting minutes via AI.
+
+**Task:** Extend the Data Model and build the Meeting Setup UI.
+
+---
+
+## 1. Schema Extensions (Backend)
+
+**Objective:** Update `CaptureSession` model to support Meeting metadata.
+
+**Instructions:**
+1.  **Modify `server/models/Session.ts` (Mongoose):**
+    *   Add `type`: Enum ['walkthrough', 'meeting']. Default 'walkthrough'.
+    *   Add `meetingMetadata`: Object
+        *   `meetingType`: Enum ['scope', 'schedule', 'material', 'vendor', 'internal'].
+        *   `participants`: Array of `{ name: string, role: string, email?: string }`.
+        *   `consentGiven`: Boolean.
+        *   `consentMethod`: Enum ['verbal', 'written', 'contract'].
+        *   `consentTimestamp`: Date.
+    *   Add `approvalStatus`: Enum ['pending', 'approved'].
+    *   Add `approvedAt`: Date.
+
+## 2. Frontend Logic (Store & Types)
+
+**Objective:** Update `lib/types.ts` and `lib/store.ts` to mirror the backend changes.
+
+**Instructions:**
+1.  Update `CaptureSession` interface in `lib/types.ts` with the new fields above.
+2.  Update `useAppStore` in `lib/store.ts`:
+    *   `startSession(projectId, type, metadata)`: Accept the new metadata arguments.
+
+## 3. UI: Meeting Setup Screen
+
+**Objective:** Create a setup screen before recording starts, to capture compliance data.
+
+**Instructions:**
+1.  **Create Component:** `components/MeetingSetup.tsx`.
+2.  **Features:**
+    *   **Dropdown:** "Meeting Type" (Scope, Schedule, etc.).
+    *   **Participant Input:** Add names + roles. (Simple list with "Add" button).
+    *   **Consent Checkbox:** "I confirm all parties have consented to being recorded" (Required to proceed).
+    *   **Start Button:** Only enabled when Consent is checked.
+3.  **Integrate:**
+    *   Modify `app/capture.tsx` or create a new route `app/meeting/new.tsx`.
+    *   If user selects "Meeting Mode", show this setup screen first.
+    *   Pass the metadata to `startSession()`.
+
+## 4. Backend: Email Dispatch (Post-Approval)
+
+**Objective:** Send the meeting summary to participants.
+
+**Instructions:**
+1.  **Create Route:** `POST /api/sessions/:id/approve`
+    *   Action: Mark session as `approved`.
+    *   Action: (Mock) Send email to participants. Log "Email sent to [emails]" in the console. (We will use SendGrid later, just mock the logic for now).
+
+## Execute
+
+Please generate the code for:
+1.  Updated `server/models/Session.ts`
+2.  Updated `lib/types.ts`
+3.  `components/MeetingSetup.tsx`
+4.  Updated `app/capture.tsx` (to include the setup flow)
+5.  `server/routes/sessions.ts` (with approval logic)

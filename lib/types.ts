@@ -2,6 +2,16 @@ export type SyncStatus = 'captured' | 'syncing' | 'uploaded' | 'failed';
 
 export type CaptureMode = 'photo_speak' | 'walkthrough' | 'voice_only';
 
+export type SessionType = 'walkthrough' | 'meeting';
+
+export type MeetingType = 'scope' | 'schedule' | 'material' | 'vendor' | 'internal';
+
+export type ParticipantRole = 'pm' | 'sub' | 'owner' | 'vendor' | 'internal';
+
+export type ConsentMethod = 'verbal' | 'written' | 'contract';
+
+export type ApprovalStatus = 'pending' | 'approved' | 'rejected';
+
 export type TaskStatus = 'open' | 'in_progress' | 'blocked' | 'done';
 
 export type TaskPriority = 'low' | 'medium' | 'high';
@@ -11,6 +21,33 @@ export type LinkType = 'strong' | 'suggested' | 'possible';
 export type LinkCreator = 'system' | 'user';
 
 export type AreaType = 'kitchen' | 'bath' | 'roof' | 'exterior' | 'garage' | 'basement' | 'bedroom' | 'living_room' | 'other';
+
+export interface AuthUser {
+  id: string;
+  email: string;
+  name: string;
+  company?: string;
+}
+
+export interface Participant {
+  name: string;
+  role: ParticipantRole;
+  email?: string;
+}
+
+export interface ConsentRecord {
+  obtainedAt: number;
+  method: ConsentMethod;
+  confirmedByUserId: string;
+}
+
+export interface MeetingMetadata {
+  meetingType: MeetingType;
+  participants: Participant[];
+  consentGiven: boolean;
+  consentMethod: ConsentMethod;
+  consentTimestamp: number;
+}
 
 export interface Project {
   id: string;
@@ -107,12 +144,17 @@ export interface CaptureSession {
   areaId: string;
   areaType: AreaType;
   mode: CaptureMode;
+  sessionType: SessionType;
   startedAt: number;
   endedAt?: number;
   mediaIds: string[];
   audioIds: string[];
   webhookStatus: 'pending' | 'sent' | 'received' | 'failed';
   webhookResult?: WebhookResult;
+  meetingMetadata?: MeetingMetadata;
+  approvalStatus?: ApprovalStatus;
+  approvedAt?: number;
+  approvedBy?: string;
 }
 
 export interface WebhookIssue {

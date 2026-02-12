@@ -1,0 +1,85 @@
+# Phase 1 Integration Strategy: "Meetings & Consent"
+
+This document outlines how to merge the Phase 1 requirements (Meeting Notes, Consent, Governance) into the existing Phase 2 application (Field Capture).
+
+## 1. Conceptual Merge: "Session Modes"
+
+We will treat Phase 1 and Phase 2 as different **Modes** of the same underlying `CaptureSession`.
+
+| Feature | Phase 2 (Existing) | Phase 1 (New) |
+| :--- | :--- | :--- |
+| **Mode Name** | `Field Walkthrough` | `Site Meeting` |
+| **Focus** | Photos + Short Voice Notes | Long-form Audio + Decisions |
+| **Pre-reqs** | Select Project + Area | Select Project + **Participants** + **Consent** |
+| **Output** | Tasks + Evidence Links | Meeting Minutes + Action Items |
+| **Final Step** | Sync to Dashboard | **Approve & Email** |
+
+## 2. Schema / Data Model Extensions
+
+We need to update the Mongoose Schema (`server/models/Session.ts`) and Frontend Types (`lib/types.ts`).
+
+### New Types
+```typescript
+type SessionType = 'walkthrough' | 'meeting';
+
+interface Participant {
+  name: string;
+  role: 'pm' | 'sub' | 'owner' | 'vendor' | 'internal';
+  email?: string; // For dispatching notes later
+}
+
+interface ConsentRecord {
+  obtainedAt: number; // timestamp
+  method: 'verbal' | 'written' | 'contract';
+  confirmedByUserId: string;
+}
+```
+
+### Updated `CaptureSession` Model
+*   `type`: defaults to 'walkthrough'. Add 'meeting'.
+*   `meetingType`: (Optional) 'scope', 'scheduling', 'material', etc.
+*   `participants`: `Participant[]`
+*   `consent`: `ConsentRecord`
+*   `approvalStatus`: 'pending' | 'approved' | 'rejected'
+*   `approvedAt`: date
+*   `approvedBy`: userId
+
+## 3. UI Workflow Updates
+
+### A. "New Session" Flow
+Instead of immediately opening the Camera (`capture.tsx`), we need a **Session Setup** step for Meetings.
+*   **Toggle:** "Field Walk" vs "Formal Meeting".
+*   **If Meeting:**
+    1.  **Select Type:** (Dropdown: Scope, Schedule, etc.)
+    2.  **Add Participants:** Chip input (Name + Role).
+    3.  **Consent Checkbox:** "I confirm all parties have consented..." (Mandatory).
+    4.  **Start:** Goes to a "Recording" screen (simpler than Camera view, big timer, maybe waveform).
+
+### B. "Review & Approve" Screen
+Existing "Session Review" needs an upgrade for Meetings.
+*   **Editable Summary:** PM can rewrite the AI summary.
+*   **Action Item Grooming:** Reassign tasks to specific Participants (identified in setup).
+*   **"Approve & Send" Button:**
+    *   Locks the record.
+    *   Triggers Backend to generate PDF/Email.
+
+## 4. Backend & AI Updates
+
+### A. N8N Prompt Enhancement
+Pass `participants` list to N8N. Update prompt:
+> "Context: This is a meeting between [Participants]. Use these names for Speaker Diarization if possible. Attribute tasks to these specific roles."
+
+### B. Communication Service (`server/services/email.ts`)
+*   New Endpoint: `POST /api/sessions/:id/dispatch`
+*   Logic:
+    1.  Check `approvalStatus === 'approved'`.
+    2.  Generate HTML email with Summary + Action Items.
+    3.  Send to all Participants with an email address.
+
+## 5. Implementation Roadmap
+
+1.  **Database Migration:** Add fields to `Session` schema.
+2.  **Frontend Setup:** Create `MeetingSetupModal` component.
+3.  **Frontend Recording:** Adapt `capture.tsx` to handle "Audio-only Meeting Mode" better.
+4.  **Backend Dispatch:** Implement Email/PDF generation.
+

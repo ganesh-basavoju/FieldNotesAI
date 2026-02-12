@@ -1,0 +1,234 @@
+AI-Powered Field Notes & Action Item System
+Requirements & Architecture — Version 3.0 (Production-Ready)
+Executive Purpose
+This system captures live, in-person conversations occurring in the field (project managers, subcontractors, homeowners, vendors, internal staff), transforms them into clean, structured, legally defensible meeting notes, extracts actionable commitments, and integrates them directly into the company’s job management and communication workflows.
+The system is designed for real-world construction environments, prioritizing:
+Offline-first reliability
+Legal compliance (California all-party consent)
+Human-in-the-loop review
+Auditability and defensibility
+High trust and low friction for field users
+1. Core System Architecture Overview
+The system consists of four primary components:
+Mobile Recording Application (Offline-First PWA)
+AI Processing & Intelligence Service
+Data Management, Integration & Notification Service
+Governance, Security & Audit Layer (Cross-Cutting)
+Each component is modular, scalable, and fault-tolerant.
+2. Mobile Recording Application
+Offline-First Progressive Web App (PWA)
+2.1 Platform & Design Requirements
+Cloud-based PWA optimized for iOS and Android mobile phones
+Large touch targets, high-contrast UI for outdoor jobsite use
+Designed to function fully offline for extended periods
+iOS-aware constraints (background behavior, storage eviction)
+2.2 Pre-Meeting Setup & Job Context (Mandatory)
+Recording cannot begin until the following are completed:
+Required Fields
+Job ID
+Validated against job management system (when online)
+Offline fallback allowed with later reconciliation
+Meeting Type (required dropdown)
+Scope / Change Order
+Scheduling / Access
+Material Selection
+Subcontractor Coordination
+Vendor / Procurement
+Internal Team Meeting
+Participants (Role-First)
+PM
+Homeowner
+Subcontractor
+Vendor
+Internal Staff
+Consent Confirmation
+Checkbox: “All parties have consented to being recorded”
+Consent method:
+Verbal
+Written
+Contractual clause
+Recorder Identity
+Logged automatically (user account + device)
+Consent confirmation is logged and immutable as part of the audit trail.
+2.3 Recording Functionality (Offline-First)
+Audio Capture
+Uses native device microphone
+Designed for noisy environments (wind, overlapping voices)
+Crash-safe recording with recovery of partial files
+Offline Requirements
+App must:
+Launch offline
+Complete pre-meeting setup offline
+Record audio offline
+Audio + metadata saved locally using:
+IndexedDB / File System Access APIs
+Local encryption is applied where supported
+2.4 Post-Meeting Storage & Synchronization
+Local First Save
+On STOP:
+Audio file
+Metadata
+Consent record
+Timestamp
+Device ID
+Upload Queue
+Automatic background upload when connectivity returns
+Chunked, resumable uploads with integrity checks
+Handles interruptions gracefully
+Status Indicators
+Ready to Upload
+Uploading
+Upload Failed (Retry Available)
+Upload Complete
+User Controls
+Manual retry
+“Upload only on Wi-Fi”
+Storage warnings if OS eviction risk is detected
+3. AI Processing & Intelligence Service
+3.1 Speech-to-Text & Diarization
+Transcription
+High-accuracy speech-to-text optimized for construction vocabulary
+Speaker Diarization
+Role-first labeling (PM, Sub, HO, Vendor)
+Pre-entered participants used as hints, not assumptions
+Confidence scoring per segment
+Fallback label: “Unknown Speaker” (never guess)
+Optional:
+Lightweight voice enrollment for PMs to improve accuracy
+3.2 Transcript Processing & Condensation
+Raw Transcript (Immutable)
+Full verbatim transcript
+Stored permanently (subject to retention policy)
+Edited Transcription (Structured Summary)
+Removes:
+Filler words
+Repetition
+Social pleasantries
+Focuses on:
+Decisions
+Agreements
+Clarifications
+Scope changes
+Scheduling constraints
+Written in neutral, professional, non-admissive language
+Versioned edits only — raw transcript is never modified.
+3.3 Action Item Extraction Engine
+Detection Rules
+Only extract tasks where commitment language exists
+“I will…”
+“We need to…”
+“You’ll handle…”
+Suggestions or discussions are labeled separately
+Action Item Schema
+Each action item includes:
+Title (imperative verb)
+Owner Role (PM / Other Party)
+Owner Name (if known)
+Due Date (explicit or inferred)
+Priority (if detectable)
+Source Quote (linked transcript segment)
+Confidence Score
+Categorization
+PM To-Do List
+Other Party To-Do List
+No hallucinated commitments permitted.
+3.4 Confidence & Quality Scoring
+Transcript confidence
+Diarization confidence
+Action item confidence
+Flags for low-confidence outputs
+4. Human-in-the-Loop Review & Approval
+4.1 Review Interface (Mobile + Desktop)
+Before any communication or integration:
+PM can:
+Edit summary text
+Merge/split/reassign action items
+Adjust due dates
+Remove sensitive content
+Approve or discard notes
+4.2 Versioning & Defensibility
+Raw transcript: immutable
+Edited notes: versioned
+Approval timestamp logged
+5. Data Management, Integration & Storage
+5.1 Core Data Structure (JSON)
+Includes:
+Job ID
+Meeting Type
+Timestamp
+Participants
+Consent record
+Raw Transcript
+Edited Transcription (versioned)
+PM Action Items (array)
+Other Party Action Items (array)
+Confidence metrics
+Audit metadata
+5.2 Job Management Integration
+Automatic Filing
+Filed to correct job via Job ID
+Idempotent writes (no duplicates)
+Failure Handling
+Dead-letter queue for failed integrations
+Manual reassignment if Job ID mismatch occurs
+Optional future:
+Bi-directional task sync
+6. Communication & Notification System
+6.1 Email Dispatch (Post-Approval)
+Trigger
+Only after PM approval
+Recipients
+Assigned PM
+Optional supervisor
+Email Content
+Job ID + Date/Time
+Clean Edited Transcription
+PM To-Do List
+Other Party To-Do List
+Formatted for:
+Easy forwarding
+Clean client-safe language
+6.2 Templates & Tone Controls
+Homeowner
+Subcontractor
+Vendor
+Tone selector:
+Neutral
+Friendly
+Firm
+Language guardrails prevent:
+Admissions of fault
+Guarantees
+Schedule promises beyond approved language
+7. Governance, Security & Compliance Layer
+7.1 Legal & Compliance
+California all-party consent enforcement
+Retention policies by job/client
+Legal hold capability
+7.2 Security
+Encryption in transit and at rest
+Role-based access control
+Tenant isolation (for future SaaS)
+7.3 Audit Log (Tamper-Evident)
+Logs:
+Recording initiation
+Consent confirmation
+Upload
+AI processing
+Review edits
+Approval
+Email dispatch
+8. Analytics & Continuous Improvement
+Usage metrics by PM
+Accuracy feedback (“Was this correct?”)
+Common failure environments
+Edit frequency before approval
+Processing latency
+9. MVP vs Phase-2 Guidance
+MVP (Must-Have)
+Offline recording
+Consent capture
+Transcription + summary
+Action items
+PM review
+Email output
