@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback, useEffect } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
   StyleSheet,
   Text,
@@ -9,7 +9,7 @@ import {
   Animated as RNAnimated,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
@@ -18,49 +18,42 @@ import { Audio } from "expo-av";
 import { LinearGradient } from "expo-linear-gradient";
 import Colors from "@/constants/colors";
 import { useAppStore } from "@/lib/store";
-import { AreaSelector } from "@/components/AreaSelector";
-import { MeetingSetup } from "@/components/MeetingSetup";
 import { sendSessionToWebhook } from "@/lib/sync-service";
-import type { AreaType, CaptureMode, MeetingMetadata } from "@/lib/types";
+import type { CaptureMode } from "@/lib/types";
 
 const MODE_CONFIG: Record<CaptureMode, { icon: keyof typeof Ionicons.glyphMap; label: string; description: string }> = {
-  photo_speak: { icon: "camera-outline", label: "Photo + Speak", description: "Take photo, then record voice note" },
+  photo_speak: { icon: "camera-outline", label: "Photo + Speak", description: "Take photo, then automatically record voice note" },
   walkthrough: { icon: "walk-outline", label: "Walkthrough", description: "Continuous audio with rapid captures" },
   voice_only: { icon: "mic-outline", label: "Voice Note", description: "Audio recording only" },
+  upload_audio: { icon: "cloud-upload-outline", label: "Upload Audio", description: "Upload a pre-recorded audio file" },
+  upload_transcript: { icon: "document-text-outline", label: "Upload Transcript", description: "Upload a transcript document" },
 };
 
 export default function CaptureScreen() {
   const insets = useSafeAreaInsets();
   const webTopInset = Platform.OS === "web" ? 67 : 0;
-
-  const currentProjectId = useAppStore((s) => s.currentProjectId);
+  
+  const { sessionId: paramSessionId, mode: paramMode } = useLocalSearchParams<{ sessionId: string, mode: CaptureMode }>();
+  
   const projects = useAppStore((s) => s.projects);
-  const areas = useAppStore((s) => s.areas);
+  const sessions = useAppStore((s) => s.sessions);
   const addMedia = useAppStore((s) => s.addMedia);
   const addAudioNote = useAppStore((s) => s.addAudioNote);
-  const startSession = useAppStore((s) => s.startSession);
   const endSession = useAppStore((s) => s.endSession);
   const addMediaToSession = useAppStore((s) => s.addMediaToSession);
   const addAudioToSession = useAppStore((s) => s.addAudioToSession);
 
-  const [mode, setMode] = useState<CaptureMode>("photo_speak");
-  const [isMeetingMode, setIsMeetingMode] = useState(false);
-  const [showMeetingSetup, setShowMeetingSetup] = useState(false);
-  const [selectedArea, setSelectedArea] = useState<AreaType | null>(null);
   const [isRecording, setIsRecording] = useState(false);
   const [recordingDuration, setRecordingDuration] = useState(0);
-  const [sessionId, setSessionId] = useState<string | null>(null);
   const [capturedCount, setCapturedCount] = useState(0);
-  const [lastCapturedUri, setLastCapturedUri] = useState<string | null>(null);
 
   const recordingRef = useRef<Audio.Recording | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const pulseAnim = useRef(new RNAnimated.Value(1)).current;
 
-  const project = projects.find((p) => p.id === currentProjectId);
-  const projectAreas = areas.filter((a) => a.projectId === currentProjectId);
-
-  const currentArea = projectAreas.find((a) => a.type === selectedArea);
+  const session = sessions.find(s => s.id === paramSessionId);
+  const project = projects.find(p => p.id === session?.projectId);
+  const mode = paramMode || session?.mode || "photo_speak";
 
   useEffect(() => {
     if (isRecording) {
@@ -138,10 +131,7 @@ export default function CaptureScreen() {
   };
 
   const handleTakePhoto = async () => {
-    if (!selectedArea || !currentProjectId) {
-      Alert.alert("Select Area", "Please select an area before capturing.");
-      return;
-    }
+    if (!session) return;
 
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== "granted") {
@@ -165,132 +155,49 @@ export default function CaptureScreen() {
     }
   };
 
-  const ensureSession = async (): Promise<string> => {
-    if (sessionId) return sessionId;
-    if (!currentProjectId || !currentArea || !selectedArea) throw new Error("Missing context");
-    const session = await startSession(currentProjectId, currentArea.id, selectedArea, mode);
-    setSessionId(session.id);
-    return session.id;
-  };
-
-  const handleMeetingStart = async (metadata: MeetingMetadata) => {
-    if (!selectedArea || !currentProjectId || !currentArea) {
-      Alert.alert("Select Area", "Please select an area before starting a meeting.");
-      setShowMeetingSetup(false);
-      return;
-    }
-    const session = await startSession(
-      currentProjectId,
-      currentArea.id,
-      selectedArea,
-      "voice_only",
-      "meeting",
-      metadata
-    );
-    setSessionId(session.id);
-    setCapturedCount(0);
-    setShowMeetingSetup(false);
-    setMode("voice_only");
-  };
-
   const saveMedia = async (uri: string, type: "photo" | "video") => {
-    if (!selectedArea || !currentProjectId || !currentArea) return;
-
-    const sid = await ensureSession();
-
+    if (!session) return;
     const media = await addMedia({
-      projectId: currentProjectId,
-      areaId: currentArea.id,
-      areaType: selectedArea,
+      projectId: session.projectId,
+      areaId: session.areaId,
+      areaType: session.areaType,
       type,
       uri,
       capturedAt: Date.now(),
-      sessionId: sid,
+      sessionId: session.id,
     });
-
-    await addMediaToSession(sid, media.id);
-
+    await addMediaToSession(session.id, media.id);
     setCapturedCount((c) => c + 1);
-    setLastCapturedUri(uri);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
     if (mode === "photo_speak") {
-      Alert.alert("Record Voice Note?", "Would you like to attach a voice note to this photo?", [
-        { text: "Skip", style: "cancel" },
-        {
-          text: "Record",
-          onPress: () => startRecording(),
-        },
-      ]);
-    }
-  };
-
-  const handleVoiceRecord = async () => {
-    if (isRecording) {
-      const uri = await stopRecording();
-      if (uri && selectedArea && currentProjectId && currentArea) {
-        const sid = await ensureSession();
-        const audio = await addAudioNote({
-          projectId: currentProjectId,
-          areaId: currentArea.id,
-          areaType: selectedArea,
-          uri,
-          durationMs: recordingDuration * 1000,
-          capturedAt: Date.now(),
-          sessionId: sid,
-        });
-        await addAudioToSession(sid, audio.id);
-        setCapturedCount((c) => c + 1);
-
-        if (mode === "voice_only" && sid) {
-          await endSession(sid);
-          sendSessionToWebhook(sid).catch(() => {});
-          setSessionId(null);
-        }
+      if (!isRecording) {
+        await startRecording();
       }
-    } else {
-      if (!selectedArea) {
-        Alert.alert("Select Area", "Please select an area before recording.");
-        return;
-      }
-      await startRecording();
     }
   };
 
-  const handleStartWalkthrough = async () => {
-    if (!selectedArea || !currentProjectId || !currentArea) {
-      Alert.alert("Select Area", "Please select an area before starting a walkthrough.");
-      return;
-    }
-    const session = await startSession(currentProjectId, currentArea.id, selectedArea, "walkthrough");
-    setSessionId(session.id);
-    setCapturedCount(0);
-    await startRecording();
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-  };
-
-  const handleEndWalkthrough = async () => {
+  const handleEndSession = async () => {
+    if (!session) return;
     const uri = await stopRecording();
-    if (uri && selectedArea && currentProjectId && currentArea) {
+    if (uri) {
       const audio = await addAudioNote({
-        projectId: currentProjectId,
-        areaId: currentArea.id,
-        areaType: selectedArea,
+        projectId: session.projectId,
+        areaId: session.areaId,
+        areaType: session.areaType,
         uri,
         durationMs: recordingDuration * 1000,
         capturedAt: Date.now(),
-        sessionId: sessionId || undefined,
+        sessionId: session.id,
       });
-      if (sessionId) {
-        await addAudioToSession(sessionId, audio.id);
-      }
+      await addAudioToSession(session.id, audio.id);
     }
-    if (sessionId) {
-      await endSession(sessionId);
-      sendSessionToWebhook(sessionId).catch(() => {});
-    }
+    
+    await endSession(session.id);
+    sendSessionToWebhook(session.id).catch(() => {});
+    
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    router.back();
+    router.replace({ pathname: "/project/[id]", params: { id: session.projectId } });
   };
 
   const formatDuration = (seconds: number) => {
@@ -306,75 +213,19 @@ export default function CaptureScreen() {
         locations={[0, 0.35, 0.75]}
         style={StyleSheet.absoluteFill}
       />
+      
       <View style={styles.topBar}>
-        <Pressable onPress={async () => {
-          if (sessionId && !isRecording && mode !== "walkthrough") {
-            await endSession(sessionId);
-            sendSessionToWebhook(sessionId).catch(() => {});
-          }
-          router.back();
-        }} hitSlop={12}>
-          <Ionicons name="close" size={28} color={Colors.dark.text} />
-        </Pressable>
+        <View style={{ width: 44 }} />
         <View style={styles.topCenter}>
-          <Text style={styles.projectLabel} numberOfLines={1}>{project?.name || "Select Project"}</Text>
-          {capturedCount > 0 && (
+          <Text style={styles.projectLabel} numberOfLines={1}>{project?.name || "Capture"}</Text>
+          {capturedCount > 0 ? (
             <Text style={styles.captureCount}>{capturedCount} captured</Text>
-          )}
+          ) : null}
         </View>
-        {mode === "walkthrough" && sessionId ? (
-          <Pressable onPress={handleEndWalkthrough} style={styles.endButton}>
-            <Text style={styles.endButtonText}>End</Text>
-          </Pressable>
-        ) : (
-          <View style={{ width: 44 }} />
-        )}
-      </View>
-
-      <View style={styles.areaSection}>
-        <Text style={styles.areaLabel}>Area</Text>
-        <AreaSelector selectedArea={selectedArea} onSelect={setSelectedArea} />
-      </View>
-
-      <View style={styles.modeSelector}>
-        {(Object.entries(MODE_CONFIG) as [CaptureMode, typeof MODE_CONFIG[CaptureMode]][]).map(([key, config]) => (
-          <Pressable
-            key={key}
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              setIsMeetingMode(false);
-              setMode(key);
-            }}
-            style={[styles.modeChip, !isMeetingMode && mode === key && styles.modeChipActive]}
-            testID={`mode-${key}`}
-          >
-            <Ionicons name={config.icon} size={16} color={!isMeetingMode && mode === key ? "#FFF" : Colors.dark.textMuted} />
-            <Text style={[styles.modeLabel, !isMeetingMode && mode === key && styles.modeLabelActive]}>{config.label}</Text>
-          </Pressable>
-        ))}
-        <Pressable
-          onPress={() => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            setIsMeetingMode(true);
-            setShowMeetingSetup(true);
-          }}
-          style={[styles.modeChip, isMeetingMode && styles.modeChipActive]}
-          testID="mode-meeting"
-        >
-          <Ionicons name="people-outline" size={16} color={isMeetingMode ? "#FFF" : Colors.dark.textMuted} />
-          <Text style={[styles.modeLabel, isMeetingMode && styles.modeLabelActive]}>Site Meeting</Text>
+        <Pressable onPress={handleEndSession} style={styles.endButton}>
+          <Text style={styles.endButtonText}>End</Text>
         </Pressable>
       </View>
-
-      <MeetingSetup
-        visible={showMeetingSetup}
-        onClose={() => {
-          setShowMeetingSetup(false);
-          if (!sessionId) setIsMeetingMode(false);
-        }}
-        onStart={handleMeetingStart}
-        projectName={project?.name || ""}
-      />
 
       <View style={styles.captureArea}>
         {isRecording ? (
@@ -383,7 +234,7 @@ export default function CaptureScreen() {
               <View style={styles.recordingDot} />
             </RNAnimated.View>
             <Text style={styles.recordingTime}>{formatDuration(recordingDuration)}</Text>
-            <Text style={styles.recordingLabel}>Recording</Text>
+            <Text style={styles.recordingLabel}>Recording Note...</Text>
           </View>
         ) : (
           <View style={styles.readyIndicator}>
@@ -395,16 +246,9 @@ export default function CaptureScreen() {
         )}
       </View>
 
-      <View style={[styles.controls, { paddingBottom: insets.bottom + (Platform.OS === "web" ? 34 : 20) }]}>
+      <View style={[styles.controls, { paddingBottom: insets.bottom + (Platform.OS === "web" ? 34 : 40) }]}>
         {mode === "photo_speak" ? (
           <View style={styles.controlRow}>
-            <Pressable
-              onPress={handleVoiceRecord}
-              style={({ pressed }) => [styles.secondaryButton, pressed && styles.buttonPressed]}
-            >
-              <Ionicons name={isRecording ? "stop" : "mic"} size={28} color={isRecording ? Colors.dark.error : Colors.dark.accentSoft} />
-            </Pressable>
-
             <Pressable
               onPress={handleTakePhoto}
               style={({ pressed }) => [styles.mainButton, pressed && styles.mainButtonPressed]}
@@ -414,35 +258,31 @@ export default function CaptureScreen() {
                 colors={[Colors.dark.accentGradientStart, Colors.dark.accentGradientEnd]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
-                style={styles.mainButtonInner}
+                style={[styles.mainButtonInner, isRecording && { opacity: 0.5 }]}
               >
                 <Ionicons name="camera" size={32} color="#FFF" />
               </LinearGradient>
             </Pressable>
-
-            <View style={{ width: 56 }} />
           </View>
         ) : mode === "walkthrough" ? (
           <View style={styles.controlRow}>
-            {sessionId ? (
-              <>
-                <Pressable
-                  onPress={handleTakePhoto}
-                  style={({ pressed }) => [styles.mainButton, pressed && styles.mainButtonPressed]}
+            {isRecording ? (
+              <Pressable
+                onPress={handleTakePhoto}
+                style={({ pressed }) => [styles.mainButton, pressed && styles.mainButtonPressed]}
+              >
+                <LinearGradient
+                  colors={[Colors.dark.accentGradientStart, Colors.dark.accentGradientEnd]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.mainButtonInner}
                 >
-                  <LinearGradient
-                    colors={[Colors.dark.accentGradientStart, Colors.dark.accentGradientEnd]}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={styles.mainButtonInner}
-                  >
-                    <Ionicons name="camera" size={32} color="#FFF" />
-                  </LinearGradient>
-                </Pressable>
-              </>
+                  <Ionicons name="camera" size={32} color="#FFF" />
+                </LinearGradient>
+              </Pressable>
             ) : (
               <Pressable
-                onPress={handleStartWalkthrough}
+                onPress={startRecording}
                 style={({ pressed }) => [pressed && styles.buttonPressed]}
               >
                 <LinearGradient
@@ -459,19 +299,14 @@ export default function CaptureScreen() {
           </View>
         ) : (
           <View style={styles.controlRow}>
-            <Pressable
-              onPress={handleVoiceRecord}
-              style={({ pressed }) => [
-                styles.mainButton,
-                isRecording && styles.mainButtonRecording,
-                pressed && styles.mainButtonPressed,
-              ]}
-            >
-              {isRecording ? (
-                <View style={[styles.mainButtonInner, styles.mainButtonInnerRecording]}>
-                  <Ionicons name="stop" size={32} color="#FFF" />
-                </View>
-              ) : (
+            {!isRecording && (
+              <Pressable
+                onPress={startRecording}
+                style={({ pressed }) => [
+                  styles.mainButton,
+                  pressed && styles.mainButtonPressed,
+                ]}
+              >
                 <LinearGradient
                   colors={[Colors.dark.accentGradientStart, Colors.dark.accentGradientEnd]}
                   start={{ x: 0, y: 0 }}
@@ -480,8 +315,8 @@ export default function CaptureScreen() {
                 >
                   <Ionicons name="mic" size={32} color="#FFF" />
                 </LinearGradient>
-              )}
-            </Pressable>
+              </Pressable>
+            )}
           </View>
         )}
       </View>
@@ -497,9 +332,9 @@ const styles = StyleSheet.create({
   topBar: {
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "space-between",
     paddingHorizontal: 20,
     paddingVertical: 12,
-    gap: 12,
   },
   topCenter: {
     flex: 1,
@@ -516,60 +351,15 @@ const styles = StyleSheet.create({
     color: Colors.dark.accentSoft,
   },
   endButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
     borderRadius: 20,
     backgroundColor: Colors.dark.error,
   },
   endButtonText: {
-    fontSize: 14,
+    fontSize: 15,
     fontFamily: "Inter_600SemiBold",
     color: "#FFF",
-  },
-  areaSection: {
-    paddingHorizontal: 20,
-    gap: 8,
-    marginBottom: 8,
-  },
-  areaLabel: {
-    fontSize: 12,
-    fontFamily: "Inter_600SemiBold",
-    color: Colors.dark.textMuted,
-    textTransform: "uppercase" as const,
-    letterSpacing: 0.5,
-  },
-  modeSelector: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    paddingHorizontal: 20,
-    gap: 8,
-    marginBottom: 16,
-  },
-  modeChip: {
-    flexBasis: "47%",
-    flexGrow: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-    paddingVertical: 10,
-    borderRadius: 12,
-    backgroundColor: Colors.dark.card,
-    borderWidth: 1,
-    borderColor: Colors.dark.glassBorder,
-  },
-  modeChipActive: {
-    backgroundColor: Colors.dark.accent,
-    borderColor: Colors.dark.accentLight,
-  },
-  modeLabel: {
-    fontSize: 12,
-    fontFamily: "Inter_500Medium",
-    color: Colors.dark.textMuted,
-  },
-  modeLabelActive: {
-    color: "#FFF",
-    fontFamily: "Inter_600SemiBold",
   },
   captureArea: {
     flex: 1,
@@ -637,15 +427,12 @@ const styles = StyleSheet.create({
     gap: 24,
   },
   mainButton: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
     overflow: "hidden",
     borderWidth: 3,
     borderColor: Colors.dark.accentLight + '60',
-  },
-  mainButtonRecording: {
-    borderColor: Colors.dark.error + "80",
   },
   mainButtonPressed: {
     transform: [{ scale: 0.92 }],
@@ -653,20 +440,7 @@ const styles = StyleSheet.create({
   mainButtonInner: {
     width: '100%',
     height: '100%',
-    borderRadius: 33,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  mainButtonInnerRecording: {
-    backgroundColor: Colors.dark.error,
-  },
-  secondaryButton: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: Colors.dark.card,
-    borderWidth: 1,
-    borderColor: Colors.dark.glassBorder,
+    borderRadius: 37,
     alignItems: "center",
     justifyContent: "center",
   },

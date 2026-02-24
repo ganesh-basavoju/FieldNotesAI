@@ -118,7 +118,18 @@ To generate an installable APK file for Android:
 Before building for production use, ensure your app points to the deployed Vercel backend.
 You can set this via environment variable during build:
 
-```bash
-EXPO_PUBLIC_DOMAIN=your-project.vercel.app eas build -p android --profile preview
+**PowerShell (Windows):**
+```powershell
+$env:EXPO_PUBLIC_DOMAIN="field-notes-ai.vercel.app"; eas build -p android --profile preview
 ```
-(Replace `your-project.vercel.app` with your actual Vercel domain).
+
+**Command Prompt (cmd):**
+```cmd
+set EXPO_PUBLIC_DOMAIN=field-notes-ai.vercel.app && eas build -p android --profile preview
+```
+
+**Mac/Linux:**
+```bash
+EXPO_PUBLIC_DOMAIN=field-notes-ai.vercel.app eas build -p android --profile preview
+```
+

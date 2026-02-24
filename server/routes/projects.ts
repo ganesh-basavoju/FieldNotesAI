@@ -25,33 +25,37 @@ router.get("/", async (req: AuthRequest, res: Response) => {
 
 router.post("/", async (req: AuthRequest, res: Response) => {
   try {
-    const { name, address, clientName } = req.body;
-    if (!name || !address || !clientName) {
-      res.status(400).json({ message: "Name, address, and client name are required" });
+    const { name, jobId, mode, scopes, participants, consentMethod, address, clientName } = req.body;
+    if (!name || !jobId || !mode || !scopes || !participants || !consentMethod) {
+      res.status(400).json({ message: "Missing required fields" });
       return;
     }
 
-    const project = new Project({ userId: req.userId, name, address, clientName });
+    const project = new Project({
+      userId: req.userId,
+      name,
+      jobId,
+      mode,
+      scopes,
+      participants,
+      consentMethod,
+      consentGiven: true,
+      webhookStatus: "pending",
+      address,
+      clientName,
+    });
     await project.save();
 
-    const defaultAreas = [
-      { type: "kitchen", label: "Kitchen" },
-      { type: "bath", label: "Bathroom" },
-      { type: "roof", label: "Roof" },
-      { type: "exterior", label: "Exterior" },
-      { type: "other", label: "Other" },
-    ];
+    const areaType = (scopes[0] || 'other');
+    const area = new Area({
+      projectId: project._id,
+      userId: req.userId,
+      type: areaType,
+      label: scopes[0] || 'General',
+    });
+    await area.save();
 
-    const areas = await Area.insertMany(
-      defaultAreas.map((a) => ({
-        projectId: project._id,
-        userId: req.userId,
-        type: a.type,
-        label: a.label,
-      }))
-    );
-
-    res.status(201).json({ project: project.toJSON(), areas: areas.map((a: any) => a.toJSON()) });
+    res.status(201).json({ project: project.toJSON(), areas: [area.toJSON()] });
   } catch (error: any) {
     console.error("Create project error:", error);
     res.status(500).json({ message: "Failed to create project" });

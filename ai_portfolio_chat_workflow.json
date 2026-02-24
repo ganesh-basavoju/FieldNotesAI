@@ -1,0 +1,122 @@
+{
+    "name": "FieldNotes AI Portfolio Chat",
+    "nodes": [
+        {
+            "parameters": {
+                "httpMethod": "POST",
+                "path": "ai-portfolio-chat",
+                "responseMode": "lastNode",
+                "options": {
+                    "rawBody": false
+                }
+            },
+            "id": "3ef8abca-adfc-4508-a515-76c7dc9c0b49",
+            "name": "Webhook",
+            "type": "n8n-nodes-base.webhook",
+            "typeVersion": 2,
+            "position": [
+                -128,
+                -16
+            ],
+            "webhookId": "dc8c79d9-6c9d-418a-a4ab-1b1a60af8a2e"
+        },
+        {
+            "parameters": {
+                "jsCode": "const body = $input.first().json.body;\nconst query = body.query;\nconst context = body.context || [];\nconst history = body.conversationHistory || [];\nconst userName = body.userName || 'User';\n\nlet contextText = `## Portfolio Overview for ${userName}\\n`;\ncontextText += `Total Jobs: ${context.length}\\n\\n`;\n\ncontext.forEach((job, idx) => {\n  contextText += `### Job ${idx + 1}: ${job.projectName} (ID: ${job.jobId})\\n`;\n  contextText += `Mode: ${job.mode} | Created: ${job.createdAt}\\n`;\n  if (job.approvalStatus) {\n    contextText += `Status: ${job.approvalStatus}`;\n    if (job.approvedBy) contextText += ` by ${job.approvedBy}`;\n    contextText += '\\n';\n  }\n  if (job.summary) {\n    contextText += `Summary: ${job.summary.substring(0, 200)}\\n`;\n  }\n  if (job.tasks && job.tasks.length > 0) {\n    const openTasks = job.tasks.filter(t => t.status === 'open' || t.status === 'in_progress');\n    contextText += `Tasks: ${job.tasks.length} total (${openTasks.length} open)\\n`;\n    job.tasks.slice(0, 10).forEach(t => {\n      contextText += `  - [${t.status}] ${t.title} (${t.priority})\\n`;\n    });\n  }\n  if (job.issues && job.issues.length > 0) {\n    contextText += `Issues: ${job.issues.length}\\n`;\n    job.issues.slice(0, 5).forEach(i => {\n      contextText += `  - ${i.title}${i.severity ? ' [' + i.severity + ']' : ''}\\n`;\n    });\n  }\n  if (job.changeOrders && job.changeOrders.length > 0) {\n    contextText += `Change Orders: ${job.changeOrders.length}\\n`;\n  }\n  contextText += '\\n';\n});\n\nlet historyText = '';\nif (history.length > 0) {\n  historyText = '\\n## Previous Conversation\\n';\n  history.forEach(h => {\n    historyText += `${h.role === 'user' ? 'User' : 'Assistant'}: ${h.content}\\n`;\n  });\n}\n\nconst fullContext = contextText + historyText;\n\nreturn { context: fullContext, question: query, jobCount: context.length };"
+            },
+            "id": "ab9e862b-c64c-4397-90c7-06d7ef1f9194",
+            "name": "Portfolio Context Formatter",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                112,
+                -16
+            ]
+        },
+        {
+            "parameters": {
+                "modelId": {
+                    "__rl": true,
+                    "value": "models/gemini-2.5-flash",
+                    "mode": "list",
+                    "cachedResultName": "models/gemini-2.5-flash"
+                },
+                "messages": {
+                    "values": [
+                        {
+                            "content": "=You are an AI assistant for a construction field notes application. You are in PORTFOLIO mode — helping a user analyze and query across ALL their jobs.\n\nRules:\n1. ONLY answer based on the provided context data. Never guess or fabricate.\n2. When referencing a specific job, always mention the job name and ID.\n3. Identify patterns, trends, and risks across jobs when relevant.\n4. Highlight overdue items, unresolved issues, and scope changes.\n5. Be concise but thorough.\n6. Format your response clearly with bullet points and job references.\n\nCONTEXT (All Jobs):\n{{ $('Portfolio Context Formatter').item.json.context }}\n\nUSER QUESTION:\n{{ $('Portfolio Context Formatter').item.json.question }}\n"
+                        }
+                    ]
+                },
+                "builtInTools": {},
+                "options": {}
+            },
+            "id": "055a92d8-c9bb-44d1-9faa-fb54572bce84",
+            "name": "Gemini Portfolio AI",
+            "type": "@n8n/n8n-nodes-langchain.googleGemini",
+            "typeVersion": 1.1,
+            "position": [
+                304,
+                -16
+            ],
+            "credentials": {
+                "googlePalmApi": {
+                    "id": "Icz3qoaROWeSqzkS",
+                    "name": "Google Gemini(PaLM) Api account"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "jsCode": "// Extract AI response from Gemini LangChain node\n// The node returns: {\"parts\":[{\"text\":\"...\"}],\"role\":\"model\"}\nconst input = $input.first().json;\n\nfunction extractText(obj) {\n  if (!obj) return '';\n  if (typeof obj === 'string') return obj;\n  // Gemini format: {parts:[{text:'...'}], role:'model'}\n  if (obj.parts && Array.isArray(obj.parts)) {\n    return obj.parts.map(p => p.text || '').join('');\n  }\n  if (obj.text) return typeof obj.text === 'string' ? obj.text : extractText(obj.text);\n  if (obj.output) return typeof obj.output === 'string' ? obj.output : extractText(obj.output);\n  if (obj.response) return typeof obj.response === 'string' ? obj.response : extractText(obj.response);\n  if (obj.content) return typeof obj.content === 'string' ? obj.content : extractText(obj.content);\n  if (obj.message && obj.message.content) return obj.message.content;\n  if (obj.candidates) {\n    try { return obj.candidates[0].content.parts[0].text; } catch(e) {}\n  }\n  return JSON.stringify(obj);\n}\n\nconst aiResponse = extractText(input) || 'Sorry, I could not generate a response.';\n\nreturn {\n  answer: aiResponse,\n  sources: [],\n  mode: 'portfolio',\n  processedAt: new Date().toISOString()\n};"
+            },
+            "id": "2633644e-43e5-489d-ac16-33c87c7de1b0",
+            "name": "Response Formatter",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                592,
+                -16
+            ]
+        }
+    ],
+    "connections": {
+        "Webhook": {
+            "main": [
+                [
+                    {
+                        "node": "Portfolio Context Formatter",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Portfolio Context Formatter": {
+            "main": [
+                [
+                    {
+                        "node": "Gemini Portfolio AI",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Gemini Portfolio AI": {
+            "main": [
+                [
+                    {
+                        "node": "Response Formatter",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    },
+    "pinData": {},
+    "meta": {
+        "instanceId": "8ac1381177916585b7d6f59c47b664e3a554c0eb6b55144045d454d30a938273"
+    }
+}

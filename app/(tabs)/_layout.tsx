@@ -14,11 +14,19 @@ function NativeTabLayout() {
     <NativeTabs>
       <NativeTabs.Trigger name="index">
         <Icon sf={{ default: "house", selected: "house.fill" }} />
+        <Label>Dashboard</Label>
+      </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="projects">
+        <Icon sf={{ default: "building.2", selected: "building.2.fill" }} />
         <Label>Projects</Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="tasks">
         <Icon sf={{ default: "checklist", selected: "checklist" }} />
         <Label>Tasks</Label>
+      </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="ai-chat">
+        <Icon sf={{ default: "sparkles", selected: "sparkles" }} />
+        <Label>AI Chat</Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="settings">
         <Icon sf={{ default: "gearshape", selected: "gearshape.fill" }} />
@@ -69,6 +77,15 @@ function ClassicTabLayout() {
       <Tabs.Screen
         name="index"
         options={{
+          title: "Dashboard",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="home" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="projects"
+        options={{
           title: "Projects",
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="business" size={size} color={color} />
@@ -81,6 +98,15 @@ function ClassicTabLayout() {
           title: "Tasks",
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="checkbox-outline" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="ai-chat"
+        options={{
+          title: "AI Chat",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="chatbubble-ellipses-outline" size={size} color={color} />
           ),
         }}
       />

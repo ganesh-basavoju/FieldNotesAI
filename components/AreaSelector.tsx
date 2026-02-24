@@ -2,7 +2,6 @@ import React from 'react';
 import { View, Text, Pressable, StyleSheet, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { LinearGradient } from 'expo-linear-gradient';
 import Colors from '@/constants/colors';
 import type { AreaType } from '@/lib/types';
 
@@ -18,14 +17,17 @@ const AREA_CONFIG: Record<AreaType, { icon: keyof typeof Ionicons.glyphMap; labe
   other: { icon: 'ellipsis-horizontal-circle-outline', label: 'Other' },
 };
 
+const ALL_AREAS: AreaType[] = ['kitchen', 'bath', 'roof', 'exterior', 'garage', 'basement', 'bedroom', 'living_room', 'other'];
+
 interface AreaSelectorProps {
   selectedArea: AreaType | null;
   onSelect: (area: AreaType) => void;
   compact?: boolean;
+  allowedAreas?: AreaType[];
 }
 
-export function AreaSelector({ selectedArea, onSelect, compact }: AreaSelectorProps) {
-  const areas: AreaType[] = ['kitchen', 'bath', 'roof', 'exterior', 'garage', 'basement', 'bedroom', 'living_room', 'other'];
+export function AreaSelector({ selectedArea, onSelect, compact, allowedAreas }: AreaSelectorProps) {
+  const areas = allowedAreas && allowedAreas.length > 0 ? allowedAreas : ALL_AREAS;
 
   const handleSelect = (area: AreaType) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -39,7 +41,7 @@ export function AreaSelector({ selectedArea, onSelect, compact }: AreaSelectorPr
       contentContainerStyle={styles.container}
     >
       {areas.map((area) => {
-        const config = AREA_CONFIG[area];
+        const config = AREA_CONFIG[area] || { icon: 'ellipsis-horizontal-circle-outline' as const, label: area };
         const isSelected = selectedArea === area;
         return (
           <Pressable

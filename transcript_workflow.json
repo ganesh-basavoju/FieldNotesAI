@@ -1,0 +1,117 @@
+{
+    "nodes": [
+        {
+            "parameters": {
+                "httpMethod": "POST",
+                "path": "transcript-upload-a1b2c3d4",
+                "responseMode": "responseNode",
+                "options": {}
+            },
+            "type": "n8n-nodes-base.webhook",
+            "typeVersion": 2.1,
+            "position": [
+                896,
+                0
+            ],
+            "id": "236c762d-461b-41e6-95d8-1972cbbd9246",
+            "name": "Webhook - Transcript Upload",
+            "webhookId": "transcript-upload-a1b2c3d4"
+        },
+        {
+            "parameters": {
+                "resource": "audio",
+                "operation": "analyze",
+                "modelId": {
+                    "__rl": true,
+                    "value": "models/gemini-2.5-flash",
+                    "mode": "list",
+                    "cachedResultName": "models/gemini-2.5-flash"
+                },
+                "text": "=You are an AI system that generates legally-defensible field meeting notes from construction meeting transcript documents.\n\nYou are receiving a transcript file (PDF, DOC, or TXT). Read and analyze its full content.\n\n────────────────────────\nINPUTS YOU WILL RECEIVE\n────────────────────────\n1. A transcript document file (binary) containing meeting notes or transcription text.\n2. Job metadata from form fields (JSON in metadata parameter):\n   - projectId, projectName, jobId, sessionId\n   - meetingType (from project scopes: scope, schedule, material, vendor, internal)\n   - participants: [{name, role}] — use as DIARIZATION HINTS\n   - consent: {method, given}\n\n────────────────────────\nCRITICAL SPEAKER IDENTIFICATION RULES\n────────────────────────\n1. Use the pre-entered participants list as HINTS, not assumptions.\n2. Label speakers as: Role (Name) — e.g. \"PM (Ganesh)\", \"Sub (Lalit)\"\n3. If a speaker cannot be confidently matched → label as \"Unknown Speaker\"\n4. NEVER guess or hallucinate identities or roles.\n5. If lines are prefixed with speaker labels, use those labels.\n6. Detect self-introductions and bind to speaker labels.\n\n────────────────────────\nTRANSCRIPTION RULES\n────────────────────────\n- Preserve raw transcript verbatim (immutable) in transcriptSegments.\n- Create an editedSummary:\n  - Remove filler words and pleasantries\n  - Preserve meaning\n  - Neutral, professional, non-admissive language\n  - Focus on: Decisions, Agreements, Clarifications, Scope Changes, Scheduling Constraints, Deadlines\n- Maintain timestamps in MM:SS format if present. If no timestamps exist, use \"00:00\".\n- Provide confidence score per segment (0-1).\n- Provide diarizationConfidence per segment (0-1).\n\n────────────────────────\nTASK EXTRACTION RULES\n────────────────────────\n- Extract ONLY explicit commitments: \"I will...\", \"We need to...\", \"You'll handle...\"\n- Discussions or suggestions are NOT action items.\n- No hallucinated commitments.\n- If confidence < 0.5 → DO NOT extract.\n\nEach task MUST include:\n- taskId (generate stable id)\n- title (imperative verb)\n- description\n- status: \"open\"\n- priority: \"low\" | \"medium\" | \"high\"\n- dueDate (explicit or inferred, else null)\n- suggestedAssignee (from participants, else null)\n- tags (trade, phase, area)\n- source_audio_note_id (or null)\n- source_transcript_segment_ids\n- confidence (0-1)\n\n────────────────────────\nADDITIONAL EXTRACTIONS\n────────────────────────\n\nISSUES: Only when risk or concern is stated (mold, structural, water damage, access)\nQUESTIONS: Only explicit asks (\"need approval\", \"check with insurance\")\nCHANGE ORDER CANDIDATES: Only when customer intent stated (\"homeowner wants\", \"upgrade\")\n\n────────────────────────\nSTRUCTURED SUMMARY (dailyLog)\n────────────────────────\nEach bullet must include:\n- bulletId, text, category, source references\n\nCategories: decision, agreement, clarification, scope_change, scheduling, deadline, work_performed, material, trade, customer_request\n\n────────────────────────\nCONFIDENCE & QUALITY SCORING\n────────────────────────\n- transcriptConfidence: overall accuracy (0-1)\n- diarizationConfidence: overall speaker ID accuracy (0-1)\n\n────────────────────────\nOUTPUT FORMAT (STRICT JSON)\n────────────────────────\nReturn ONLY valid JSON. No markdown. No comments.\n\n{\n  \"projectId\": \"string\",\n  \"sessionId\": \"string\",\n  \"jobId\": \"string\",\n  \"meetingType\": \"string\",\n\n  \"transcriptSegments\": [\n    {\n      \"segmentId\": \"string\",\n      \"time\": \"MM:SS\",\n      \"text\": \"verbatim\",\n      \"speaker\": \"Role (Name) or Unknown Speaker\",\n      \"confidence\": 0.0,\n      \"diarizationConfidence\": 0.0\n    }\n  ],\n\n  \"dailyLog\": {\n    \"summaryBullets\": [\n      {\n        \"bulletId\": \"string\",\n        \"text\": \"string\",\n        \"category\": \"decision | agreement | clarification | scope_change | scheduling | deadline | work_performed | material | trade | customer_request\",\n        \"source_transcript_segment_ids\": []\n      }\n    ],\n    \"confidence\": 0.0\n  },\n\n  \"tasks\": [\n    {\n      \"taskId\": \"string\",\n      \"title\": \"string\",\n      \"description\": \"string\",\n      \"status\": \"open\",\n      \"priority\": \"low | medium | high\",\n      \"dueDate\": \"ISO date | null\",\n      \"suggestedAssignee\": \"string | null\",\n      \"tags\": [],\n      \"source_transcript_segment_ids\": [],\n      \"confidence\": 0.0\n    }\n  ],\n\n  \"issues\": [\n    {\n      \"title\": \"string\",\n      \"description\": \"string\",\n      \"severity\": \"low | medium | high\",\n      \"confidence\": 0.0\n    }\n  ],\n\n  \"questions\": [\n    {\n      \"text\": \"string\",\n      \"context\": \"string\",\n      \"confidence\": 0.0\n    }\n  ],\n\n  \"changeOrderCandidates\": [\n    {\n      \"title\": \"string\",\n      \"description\": \"string\",\n      \"confidence\": 0.0\n    }\n  ],\n\n  \"qualityScoring\": {\n    \"transcriptConfidence\": 0.0,\n    \"diarizationConfidence\": 0.0\n  },\n\n  \"audit\": {\n    \"aiModel\": \"Gemini\",\n    \"pipelineVersion\": \"3.0\",\n    \"processedAt\": \"ISO_TIMESTAMP\"\n  }\n}\n\nPROCESS THE UPLOADED DOCUMENT AND RETURN ONLY THE JSON OBJECT.\n",
+                "inputType": "binary",
+                "binaryPropertyName": "file",
+                "options": {}
+            },
+            "type": "@n8n/n8n-nodes-langchain.googleGemini",
+            "typeVersion": 1,
+            "position": [
+                1120,
+                0
+            ],
+            "id": "35bbcc36-1b29-46c5-8df6-6b9db5e1eb34",
+            "name": "Analyze Transcript with Gemini",
+            "retryOnFail": true,
+            "credentials": {
+                "googlePalmApi": {
+                    "id": "Icz3qoaROWeSqzkS",
+                    "name": "Google Gemini(PaLM) Api account"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "jsCode": "// 1. Get raw Gemini text output\nconst rawText = $input.first().json.content.parts[0].text;\n\n// 2. Clean markdown fences\nlet cleaned = rawText\n  .replace(/```json\\s*/gi, '')\n  .replace(/```\\s*/g, '')\n  .trim();\n\n// 3. Extract JSON object\nconst firstBrace = cleaned.indexOf('{');\nconst lastBrace = cleaned.lastIndexOf('}');\nif (firstBrace === -1 || lastBrace === -1 || lastBrace <= firstBrace) {\n  throw new Error('No JSON object found in Gemini response');\n}\ncleaned = cleaned.substring(firstBrace, lastBrace + 1);\n\n// 4. Fix common LLM JSON issues\ncleaned = cleaned.replace(/,\\s*([}\\]])/g, '$1');\ncleaned = cleaned.replace(/[\\x00-\\x08\\x0B\\x0C\\x0E-\\x1F]/g, '');\n\n// 5. Parse\nlet parsed;\ntry {\n  parsed = JSON.parse(cleaned);\n} catch (err) {\n  // Fix unescaped newlines\n  cleaned = cleaned.replace(/([^\\\\])\\n/g, '$1\\\\n');\n  cleaned = cleaned.replace(/([^\\\\])\\r/g, '$1\\\\r');\n  try {\n    parsed = JSON.parse(cleaned);\n  } catch (err2) {\n    throw new Error('Invalid JSON: ' + err2.message);\n  }\n}\n\n// 6. Validate required keys\nconst requiredKeys = ['transcriptSegments', 'dailyLog', 'tasks', 'audit'];\nfor (const key of requiredKeys) {\n  if (!(key in parsed)) {\n    parsed[key] = key === 'tasks' ? [] : key === 'transcriptSegments' ? [] : {};\n  }\n}\n\n// 7. Ensure transcript segments have speaker field\nif (Array.isArray(parsed.transcriptSegments)) {\n  parsed.transcriptSegments = parsed.transcriptSegments.map(seg => ({\n    ...seg,\n    speaker: seg.speaker || seg.speakerName || 'Unknown Speaker',\n    diarizationConfidence: seg.diarizationConfidence || 0\n  }));\n}\n\n// 8. Ensure dailyLog summaryBullets are objects\nif (parsed.dailyLog && Array.isArray(parsed.dailyLog.summaryBullets)) {\n  parsed.dailyLog.summaryBullets = parsed.dailyLog.summaryBullets.map((b, i) => {\n    if (typeof b === 'string') {\n      return {\n        bulletId: `bullet_${i}`,\n        text: b,\n        category: 'work_performed',\n        source_transcript_segment_ids: []\n      };\n    }\n    return b;\n  });\n}\n\n// 9. Ensure qualityScoring exists\nif (!parsed.qualityScoring) {\n  parsed.qualityScoring = {\n    transcriptConfidence: parsed.quality?.transcriptionConfidence || 0,\n    diarizationConfidence: parsed.quality?.speakerRecognitionConfidence || 0\n  };\n}\n\nreturn { json: parsed };\n"
+            },
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                1344,
+                0
+            ],
+            "id": "2d6e2d96-f82a-4d48-8e12-468e9de5f82a",
+            "name": "Clean JSON Output"
+        },
+        {
+            "parameters": {
+                "options": {}
+            },
+            "type": "n8n-nodes-base.respondToWebhook",
+            "typeVersion": 1.4,
+            "position": [
+                1568,
+                0
+            ],
+            "id": "bd268ce9-7f34-444d-a31f-7c523bbf8a7e",
+            "name": "Respond to Webhook"
+        }
+    ],
+    "connections": {
+        "Webhook - Transcript Upload": {
+            "main": [
+                [
+                    {
+                        "node": "Analyze Transcript with Gemini",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Analyze Transcript with Gemini": {
+            "main": [
+                [
+                    {
+                        "node": "Clean JSON Output",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Clean JSON Output": {
+            "main": [
+                [
+                    {
+                        "node": "Respond to Webhook",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    },
+    "pinData": {},
+    "meta": {
+        "instanceId": "8ac1381177916585b7d6f59c47b664e3a554c0eb6b55144045d454d30a938273"
+    }
+}

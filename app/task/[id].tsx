@@ -21,6 +21,7 @@ import { MediaThumbnail } from "@/components/MediaThumbnail";
 import { ConfidenceBadge } from "@/components/ConfidenceBadge";
 import { StatusBadge } from "@/components/StatusBadge";
 import type { TaskStatus, TaskPriority, AreaType } from "@/lib/types";
+import type { Project } from "@/lib/types";
 
 const STATUS_OPTIONS: { value: TaskStatus; label: string; icon: keyof typeof Ionicons.glyphMap; color: string }[] = [
   { value: "open", label: "Open", icon: "radio-button-off", color: Colors.dark.textMuted },
@@ -237,6 +238,10 @@ export default function TaskDetailScreen() {
             selectedArea={task.areaType || null}
             onSelect={(area) => updateTask(task.id, { areaType: area })}
             compact
+            allowedAreas={(() => {
+              const proj = projects.find((p) => p.id === task.projectId);
+              return (proj?.scopes || []) as AreaType[];
+            })()}
           />
         </View>
 

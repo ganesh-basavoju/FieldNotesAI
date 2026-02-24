@@ -22,6 +22,7 @@ const KEYS = {
   SESSIONS: 'fc_sessions',
   SYNC_QUEUE: 'fc_sync_queue',
   SETTINGS: 'fc_settings',
+  AUTH: 'fc_auth',
 } as const;
 
 async function getList<T>(key: string): Promise<T[]> {
@@ -163,16 +164,39 @@ export const SyncQueueStorage = {
   remove: (id: string) => removeItem<SyncQueueItem>(KEYS.SYNC_QUEUE, id),
 };
 
+export const AuthStorage = {
+  get: async (): Promise<{ token: string; user: any } | null> => {
+    try {
+      const raw = await AsyncStorage.getItem(KEYS.AUTH);
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  },
+  set: async (token: string, user: any): Promise<void> => {
+    await AsyncStorage.setItem(KEYS.AUTH, JSON.stringify({ token, user }));
+  },
+  clear: async (): Promise<void> => {
+    await AsyncStorage.removeItem(KEYS.AUTH);
+  },
+};
+
 export interface AppSettings {
   wifiOnlyUpload: boolean;
   autoSync: boolean;
   webhookUrl: string;
+  transcriptWebhookUrl: string;
+  aiJobWebhookUrl: string;
+  aiPortfolioWebhookUrl: string;
 }
 
 const DEFAULT_SETTINGS: AppSettings = {
   wifiOnlyUpload: true,
   autoSync: true,
   webhookUrl: 'https://n8n.srv1234562.hstgr.cloud/webhook/c42e858c-d96e-4761-aebf-b364cf62a132',
+  transcriptWebhookUrl: 'https://n8n.srv1234562.hstgr.cloud/webhook/transcript-upload-a1b2c3d4',
+  aiJobWebhookUrl: 'https://n8n.srv1234562.hstgr.cloud/webhook/ai-job-chat',
+  aiPortfolioWebhookUrl: 'https://n8n.srv1234562.hstgr.cloud/webhook/ai-portfolio-chat',
 };
 
 export const SettingsStorage = {
@@ -181,7 +205,10 @@ export const SettingsStorage = {
       const raw = await AsyncStorage.getItem(KEYS.SETTINGS);
       if (raw) {
         const parsed = JSON.parse(raw);
-        if (parsed.webhookUrl && parsed.webhookUrl.includes('webhook-test')) {
+        if (
+          (parsed.webhookUrl && parsed.webhookUrl.includes('webhook-test')) ||
+          parsed.webhookUrl === 'https://n8n.srv1234562.hstgr.cloud/webhook/56de15fe-5286-4bda-880a-e67c5aa87aa4'
+        ) {
           parsed.webhookUrl = DEFAULT_SETTINGS.webhookUrl;
           await AsyncStorage.setItem(KEYS.SETTINGS, JSON.stringify({ ...DEFAULT_SETTINGS, ...parsed }));
         }

@@ -10,12 +10,12 @@ import {
   Alert,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
 import Colors from "@/constants/colors";
 import { useAppStore } from "@/lib/store";
-import { retryFailedItems, syncPendingSessions } from "@/lib/sync-service";
 
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
@@ -24,13 +24,29 @@ export default function SettingsScreen() {
   const media = useAppStore((s) => s.media);
   const audioNotes = useAppStore((s) => s.audioNotes);
   const projects = useAppStore((s) => s.projects);
+  const authToken = useAppStore((s) => s.authToken);
+  const currentUser = useAppStore((s) => s.currentUser);
+  const logout = useAppStore((s) => s.logout);
 
   const webTopInset = Platform.OS === "web" ? 67 : 0;
 
-  const capturedCount = media.filter((m) => m.syncStatus === "captured").length;
-  const syncingCount = media.filter((m) => m.syncStatus === "syncing").length;
-  const uploadedCount = media.filter((m) => m.syncStatus === "uploaded").length;
-  const failedCount = media.filter((m) => m.syncStatus === "failed").length;
+  const handleLogout = () => {
+    Alert.alert("Sign Out", "Are you sure you want to sign out?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Sign Out",
+        style: "destructive",
+        onPress: () => {
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          logout();
+        },
+      },
+    ]);
+  };
+
+  const userInitial = currentUser?.name
+    ? currentUser.name.charAt(0).toUpperCase()
+    : "?";
 
   return (
     <View style={styles.wrapper}>
@@ -51,18 +67,40 @@ export default function SettingsScreen() {
       >
         <Text style={styles.title}>Settings</Text>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Sync Status</Text>
-          <View style={styles.card}>
-            <SyncRow icon="checkmark-circle" color={Colors.dark.statusCaptured} label="Captured" value={capturedCount} />
-            <View style={styles.divider} />
-            <SyncRow icon="sync-circle" color={Colors.dark.statusSyncing} label="Syncing" value={syncingCount} />
-            <View style={styles.divider} />
-            <SyncRow icon="cloud-done" color={Colors.dark.statusUploaded} label="Uploaded" value={uploadedCount} />
-            <View style={styles.divider} />
-            <SyncRow icon="warning" color={Colors.dark.statusFailed} label="Failed" value={failedCount} />
-          </View>
-        </View>
+        {authToken && currentUser ? (
+          <Pressable
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              router.push("/profile");
+            }}
+            style={({ pressed }) => [styles.profileBanner, pressed && { opacity: 0.85 }]}
+          >
+            <View style={styles.avatarCircle}>
+              <Text style={styles.avatarText}>{userInitial}</Text>
+            </View>
+            <View style={styles.profileInfo}>
+              <Text style={styles.profileName}>{currentUser.name}</Text>
+              {currentUser.company ? (
+                <Text style={styles.profileCompany}>{currentUser.company}</Text>
+              ) : null}
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={Colors.dark.textMuted} />
+          </Pressable>
+        ) : (
+          <Pressable
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              router.push("/(auth)/login");
+            }}
+            style={({ pressed }) => [styles.profileBanner, pressed && { opacity: 0.85 }]}
+          >
+            <View style={styles.avatarCircleGuest}>
+              <Ionicons name="person" size={28} color={Colors.dark.textMuted} />
+            </View>
+            <Text style={styles.signInText}>Sign in or Sign up</Text>
+            <Ionicons name="chevron-forward" size={20} color={Colors.dark.textMuted} />
+          </Pressable>
+        )}
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Upload Preferences</Text>
@@ -125,6 +163,30 @@ export default function SettingsScreen() {
                 </View>
               </View>
             </View>
+            <View style={styles.divider} />
+            <View style={styles.settingRow}>
+              <View style={[styles.settingInfo, { flex: 1 }]}>
+                <View style={styles.settingIconBg}>
+                  <Ionicons name="chatbubble-ellipses-outline" size={18} color={Colors.dark.accentSoft} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.settingLabel}>AI Job Chat</Text>
+                  <Text style={styles.webhookUrl} numberOfLines={2}>{settings.aiJobWebhookUrl}</Text>
+                </View>
+              </View>
+            </View>
+            <View style={styles.divider} />
+            <View style={styles.settingRow}>
+              <View style={[styles.settingInfo, { flex: 1 }]}>
+                <View style={styles.settingIconBg}>
+                  <Ionicons name="chatbubbles-outline" size={18} color={Colors.dark.accentSoft} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.settingLabel}>AI Portfolio Chat</Text>
+                  <Text style={styles.webhookUrl} numberOfLines={2}>{settings.aiPortfolioWebhookUrl}</Text>
+                </View>
+              </View>
+            </View>
           </View>
         </View>
 
@@ -139,60 +201,20 @@ export default function SettingsScreen() {
           </View>
         </View>
 
-        <View style={styles.section}>
-          <Pressable
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-              if (failedCount > 0) {
-                Alert.alert("Retry Sync", `Retry uploading ${failedCount} failed items?`, [
-                  { text: "Cancel", style: "cancel" },
-                  { text: "Retry", onPress: async () => {
-                    const count = await retryFailedItems();
-                    Alert.alert("Sync Complete", `${count} items synced successfully.`);
-                  }},
-                ]);
-              } else {
-                syncPendingSessions().then((count) => {
-                  Alert.alert("Sync Complete", count > 0 ? `${count} sessions synced.` : "All items are up to date!");
-                });
-              }
-            }}
-            style={({ pressed }) => [pressed && styles.retryButtonPressed]}
-          >
-            <LinearGradient
-              colors={[Colors.dark.accentGradientStart, Colors.dark.accentGradientEnd]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.retryButton}
+        {authToken ? (
+          <View style={styles.section}>
+            <Pressable
+              onPress={handleLogout}
+              style={({ pressed }) => [pressed && { opacity: 0.8, transform: [{ scale: 0.98 }] }]}
             >
-              <Ionicons name="refresh-outline" size={20} color="#FFF" />
-              <Text style={styles.retryButtonText}>
-                {failedCount > 0 ? `Retry ${failedCount} Failed` : "Force Sync"}
-              </Text>
-            </LinearGradient>
-          </Pressable>
-        </View>
+              <View style={styles.logoutButton}>
+                <Ionicons name="log-out-outline" size={20} color={Colors.dark.error} />
+                <Text style={styles.logoutText}>Sign Out</Text>
+              </View>
+            </Pressable>
+          </View>
+        ) : null}
       </ScrollView>
-    </View>
-  );
-}
-
-function SyncRow({
-  icon,
-  color,
-  label,
-  value,
-}: {
-  icon: keyof typeof Ionicons.glyphMap;
-  color: string;
-  label: string;
-  value: number;
-}) {
-  return (
-    <View style={styles.syncRow}>
-      <Ionicons name={icon} size={18} color={color} />
-      <Text style={styles.syncLabel}>{label}</Text>
-      <Text style={[styles.syncValue, { color }]}>{value}</Text>
     </View>
   );
 }
@@ -222,6 +244,58 @@ const styles = StyleSheet.create({
     fontFamily: "Inter_700Bold",
     color: Colors.dark.lavender,
     marginBottom: 24,
+  },
+  profileBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+    backgroundColor: Colors.dark.card,
+    borderRadius: 18,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: Colors.dark.glassBorder,
+    marginBottom: 24,
+  },
+  avatarCircle: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: Colors.dark.accent,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  avatarText: {
+    fontSize: 22,
+    fontFamily: "Inter_700Bold",
+    color: "#FFF",
+  },
+  avatarCircleGuest: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: Colors.dark.inputBackground,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  profileInfo: {
+    flex: 1,
+  },
+  profileName: {
+    fontSize: 18,
+    fontFamily: "Inter_600SemiBold",
+    color: Colors.dark.text,
+  },
+  profileCompany: {
+    fontSize: 13,
+    fontFamily: "Inter_400Regular",
+    color: Colors.dark.textMuted,
+    marginTop: 2,
+  },
+  signInText: {
+    flex: 1,
+    fontSize: 17,
+    fontFamily: "Inter_600SemiBold",
+    color: Colors.dark.text,
   },
   section: {
     marginBottom: 24,
@@ -295,30 +369,25 @@ const styles = StyleSheet.create({
     fontFamily: "Inter_500Medium",
     color: Colors.dark.text,
   },
-  syncValue: {
-    fontSize: 16,
-    fontFamily: "Inter_700Bold",
-  },
   storageValue: {
     fontSize: 16,
     fontFamily: "Inter_600SemiBold",
     color: Colors.dark.textSecondary,
   },
-  retryButton: {
+  logoutButton: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
     paddingVertical: 14,
     borderRadius: 14,
+    backgroundColor: Colors.dark.error + '15',
+    borderWidth: 1,
+    borderColor: Colors.dark.error + '30',
   },
-  retryButtonPressed: {
-    opacity: 0.8,
-    transform: [{ scale: 0.98 }],
-  },
-  retryButtonText: {
+  logoutText: {
     fontSize: 15,
     fontFamily: "Inter_600SemiBold",
-    color: "#FFF",
+    color: Colors.dark.error,
   },
 });

@@ -9,6 +9,7 @@ import {
   SessionStorage,
   TranscriptStorage,
   SettingsStorage,
+  AuthStorage,
   type AppSettings,
 } from './storage';
 import type {
@@ -28,8 +29,11 @@ import type {
   AuthUser,
   SessionType,
   MeetingMetadata,
+  Participant,
+  ConsentMethod,
 } from './types';
 import { generateId } from './generate-id';
+import { AuditLog } from './audit-log';
 
 interface AppState {
   authToken: string | null;
@@ -57,7 +61,14 @@ interface AppState {
   setCurrentProject: (id: string | null) => void;
   setCurrentArea: (id: string | null) => void;
 
-  addProject: (name: string, address: string, clientName: string) => Promise<Project>;
+  addProject: (params: {
+    name: string;
+    jobId: string;
+    mode: CaptureMode;
+    scopes: string[];
+    participants: Participant[];
+    consentMethod: ConsentMethod;
+  }) => Promise<Project>;
   updateProject: (id: string, updates: Partial<Project>) => Promise<void>;
   deleteProject: (id: string) => Promise<void>;
 
@@ -111,24 +122,35 @@ export const useAppStore = create<AppState>((set, get) => ({
     wifiOnlyUpload: true,
     autoSync: true,
     webhookUrl: 'https://n8n.srv1234562.hstgr.cloud/webhook/c42e858c-d96e-4761-aebf-b364cf62a132',
+    transcriptWebhookUrl: 'https://n8n.srv1234562.hstgr.cloud/webhook/transcript-upload-a1b2c3d4',
+    aiJobWebhookUrl: 'https://n8n.srv1234562.hstgr.cloud/webhook/ai-job-chat',
+    aiPortfolioWebhookUrl: 'https://n8n.srv1234562.hstgr.cloud/webhook/ai-portfolio-chat',
   },
   isLoading: true,
 
   login: (token, user) => {
     set({ authToken: token, currentUser: user });
+    AuditLog.log('user_login', { method: 'token' }, { userId: user.id, userName: user.name });
+    AuthStorage.set(token, user).catch(() => { });
   },
 
   logout: () => {
     set({ authToken: null, currentUser: null });
+    AuthStorage.clear().catch(() => { });
   },
 
   setAuth: (token, user) => {
     set({ authToken: token, currentUser: user });
+    if (token) {
+      AuthStorage.set(token, user).catch(() => { });
+    } else {
+      AuthStorage.clear().catch(() => { });
+    }
   },
 
   loadAll: async () => {
     set({ isLoading: true });
-    const [projects, areas, media, audioNotes, tasks, evidenceLinks, sessions, transcripts, settings] = await Promise.all([
+    const [projects, areas, media, audioNotes, tasks, evidenceLinks, sessions, transcripts, settings, savedAuth] = await Promise.all([
       ProjectStorage.getAll(),
       AreaStorage.getAll(),
       MediaStorage.getAll(),
@@ -138,6 +160,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       SessionStorage.getAll(),
       TranscriptStorage.getAll(),
       SettingsStorage.get(),
+      AuthStorage.get(),
     ]);
     set({
       projects: projects.sort((a, b) => b.updatedAt - a.updatedAt),
@@ -149,6 +172,8 @@ export const useAppStore = create<AppState>((set, get) => ({
       sessions,
       transcripts,
       settings,
+      authToken: savedAuth?.token || null,
+      currentUser: savedAuth?.user || null,
       isLoading: false,
     });
   },
@@ -156,13 +181,18 @@ export const useAppStore = create<AppState>((set, get) => ({
   setCurrentProject: (id) => set({ currentProjectId: id }),
   setCurrentArea: (id) => set({ currentAreaId: id }),
 
-  addProject: async (name, address, clientName) => {
+  addProject: async ({ name, jobId, mode, scopes, participants, consentMethod }) => {
     const now = Date.now();
     const project: Project = {
       id: generateId(),
       name,
-      address,
-      clientName,
+      jobId,
+      mode,
+      scopes,
+      participants,
+      consentMethod,
+      consentGiven: true,
+      webhookStatus: 'pending',
       createdAt: now,
       updatedAt: now,
       mediaCount: 0,
@@ -172,18 +202,20 @@ export const useAppStore = create<AppState>((set, get) => ({
     await ProjectStorage.add(project);
     set((s) => ({ projects: [project, ...s.projects] }));
 
-    const defaultAreas: { type: AreaType; label: string }[] = [
-      { type: 'kitchen', label: 'Kitchen' },
-      { type: 'bath', label: 'Bathroom' },
-      { type: 'roof', label: 'Roof' },
-      { type: 'exterior', label: 'Exterior' },
-      { type: 'other', label: 'Other' },
-    ];
-    for (const a of defaultAreas) {
-      const area: Area = { id: generateId(), projectId: project.id, type: a.type, label: a.label, createdAt: now };
-      await AreaStorage.add(area);
-      set((s) => ({ areas: [...s.areas, area] }));
-    }
+    // Audit log: project created
+    const user = get().currentUser;
+    AuditLog.log('project_created', { name, jobId, mode, consentMethod }, {
+      userId: user?.id, userName: user?.name, projectId: project.id,
+    });
+    AuditLog.log('consent_confirmed', { method: consentMethod, given: true }, {
+      userId: user?.id, userName: user?.name, projectId: project.id,
+    });
+
+    // Create an area from the first scope for session linking
+    const areaType = (scopes[0] || 'other') as AreaType;
+    const area: Area = { id: generateId(), projectId: project.id, type: areaType, label: scopes[0] || 'General', createdAt: now };
+    await AreaStorage.add(area);
+    set((s) => ({ areas: [...s.areas, area] }));
 
     return project;
   },

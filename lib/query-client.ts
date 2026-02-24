@@ -1,20 +1,41 @@
 import { fetch } from "expo/fetch";
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 
+import Constants from "expo-constants";
+import { Platform } from "react-native";
+
 /**
  * Gets the base URL for the Express API server (e.g., "http://localhost:3000")
  * @returns {string} The API base URL
  */
 export function getApiUrl(): string {
   let host = process.env.EXPO_PUBLIC_DOMAIN;
+  if (host) {
+    return new URL(`https://${host}`).href;
+  }
 
-  if (!host) {
+  if (process.env.EXPO_PUBLIC_API_URL) {
+    return process.env.EXPO_PUBLIC_API_URL;
+  }
+
+  if (process.env.NODE_ENV === "development") {
+    // In Expo Go, hostUri contains the IP of the development machine
+    const hostUri = Constants?.expoConfig?.hostUri;
+    if (hostUri) {
+      const ip = hostUri.split(":")[0];
+      return `http://${ip}:5000`;
+    }
+
+    // Fallback for Android emulator
+    if (Platform.OS === "android") {
+      return "http://10.0.2.2:5000";
+    }
+
     return "http://localhost:5000";
   }
 
-  let url = new URL(`https://${host}`);
-
-  return url.href;
+  // Default to the deployed Vercel backend for production/preview builds
+  return "https://field-notes-ai.vercel.app";
 }
 
 async function throwIfResNotOk(res: Response) {
@@ -48,21 +69,21 @@ export const getQueryFn: <T>(options: {
   on401: UnauthorizedBehavior;
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
-  async ({ queryKey }) => {
-    const baseUrl = getApiUrl();
-    const url = new URL(queryKey.join("/") as string, baseUrl);
+    async ({ queryKey }) => {
+      const baseUrl = getApiUrl();
+      const url = new URL(queryKey.join("/") as string, baseUrl);
 
-    const res = await fetch(url.toString(), {
-      credentials: "include",
-    });
+      const res = await fetch(url.toString(), {
+        credentials: "include",
+      });
 
-    if (unauthorizedBehavior === "returnNull" && res.status === 401) {
-      return null;
-    }
+      if (unauthorizedBehavior === "returnNull" && res.status === 401) {
+        return null;
+      }
 
-    await throwIfResNotOk(res);
-    return await res.json();
-  };
+      await throwIfResNotOk(res);
+      return await res.json();
+    };
 
 export const queryClient = new QueryClient({
   defaultOptions: {

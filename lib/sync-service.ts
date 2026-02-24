@@ -32,6 +32,9 @@ export async function sendSessionToWebhook(sessionId: string): Promise<boolean> 
 
   try {
     await SessionStorage.update(sessionId, { webhookStatus: "sent" });
+    if (session.projectId) {
+      await store.updateProject(session.projectId, { webhookStatus: "sent" });
+    }
 
     const sessionMedia = store.media.filter((m) => session.mediaIds.includes(m.id));
     const sessionAudio = store.audioNotes.filter((a) => session.audioIds.includes(a.id));
@@ -81,8 +84,19 @@ export async function sendSessionToWebhook(sessionId: string): Promise<boolean> 
       projectId: session.projectId,
       projectName: project?.name || "",
       projectAddress: project?.address || "",
+      jobId: project?.jobId || "",
       sessionId: session.id,
       area: areaLabel,
+      scopes: project?.scopes || [],
+      participants: (project?.participants || []).map((p) => ({
+        name: p.name,
+        role: p.role,
+      })),
+      consent: {
+        method: project?.consentMethod || session.meetingMetadata?.consentMethod || "verbal",
+        given: project?.consentGiven ?? session.meetingMetadata?.consentGiven ?? false,
+        timestamp: session.meetingMetadata?.consentTimestamp || session.startedAt,
+      },
       sessionType: session.mode === "photo_speak" ? "photo_speak" : session.mode === "walkthrough" ? "walkthrough" : "voice_only",
       capturedAt: toISOString(session.startedAt),
       endedAt: session.endedAt ? toISOString(session.endedAt) : undefined,
@@ -139,7 +153,7 @@ export async function sendSessionToWebhook(sessionId: string): Promise<boolean> 
               await processWebhookResult(sessionId, result as Partial<WebhookResult>);
             }
           }
-        } catch {}
+        } catch { }
 
         await useAppStore.getState().loadAll();
         return true;
@@ -167,7 +181,7 @@ export async function sendSessionToWebhook(sessionId: string): Promise<boolean> 
               await processWebhookResult(sessionId, result as Partial<WebhookResult>);
             }
           }
-        } catch {}
+        } catch { }
         await useAppStore.getState().loadAll();
         return true;
       } else {
@@ -185,7 +199,7 @@ export async function sendSessionToWebhook(sessionId: string): Promise<boolean> 
       const sessionMedia = store.media.filter((m) => session.mediaIds.includes(m.id));
       const sessionAudio = store.audioNotes.filter((a) => session.audioIds.includes(a.id));
       await markFailed(sessionId, sessionMedia, sessionAudio);
-    } catch {}
+    } catch { }
 
     await useAppStore.getState().loadAll();
     return false;
@@ -198,6 +212,11 @@ async function markSuccess(
   sessionAudio: { id: string }[]
 ) {
   await SessionStorage.update(sessionId, { webhookStatus: "received" });
+  const store = useAppStore.getState();
+  const session = store.sessions.find(s => s.id === sessionId);
+  if (session?.projectId) {
+    await store.updateProject(session.projectId, { webhookStatus: "received" });
+  }
   for (const m of sessionMedia) {
     await MediaStorage.update(m.id, { syncStatus: "uploaded" });
   }
@@ -212,6 +231,11 @@ async function markFailed(
   sessionAudio: { id: string }[]
 ) {
   await SessionStorage.update(sessionId, { webhookStatus: "failed" });
+  const store = useAppStore.getState();
+  const session = store.sessions.find(s => s.id === sessionId);
+  if (session?.projectId) {
+    await store.updateProject(session.projectId, { webhookStatus: "failed" });
+  }
   for (const m of sessionMedia) {
     await MediaStorage.update(m.id, { syncStatus: "failed" });
   }

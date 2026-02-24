@@ -16,12 +16,11 @@ import { LinearGradient } from "expo-linear-gradient";
 import Colors from "@/constants/colors";
 import { useAppStore } from "@/lib/store";
 import { ProjectCard } from "@/components/ProjectCard";
-import { EmptyState } from "@/components/EmptyState";
 
 export default function DashboardScreen() {
   const insets = useSafeAreaInsets();
   const projects = useAppStore((s) => s.projects);
-  const media = useAppStore((s) => s.media);
+  const sessions = useAppStore((s) => s.sessions);
   const tasks = useAppStore((s) => s.tasks);
   const loadAll = useAppStore((s) => s.loadAll);
   const [refreshing, setRefreshing] = useState(false);
@@ -32,11 +31,27 @@ export default function DashboardScreen() {
     setRefreshing(false);
   }, [loadAll]);
 
-  const totalMedia = media.length;
+  // Dashboard stats
+  const totalProjects = projects.length;
+  const completedProjects = projects.filter((p) => p.webhookStatus === "received").length;
+  const failedProjects = projects.filter((p) => p.webhookStatus === "failed").length;
   const totalTasks = tasks.length;
-  const pendingSync = media.filter((m) => m.syncStatus === "captured" || m.syncStatus === "syncing").length;
+  const processingProjects = projects.filter(
+    (p) => p.webhookStatus === "pending" || p.webhookStatus === "sent"
+  ).length;
+
+  // Recent projects (last 5)
+  const recentProjects = projects.slice(0, 5);
 
   const webTopInset = Platform.OS === "web" ? 67 : 0;
+
+  const stats = [
+    { icon: "folder-open" as const, label: "Total Projects", value: totalProjects, color: Colors.dark.accentLight },
+    { icon: "checkmark-circle" as const, label: "Completed", value: completedProjects, color: Colors.dark.success },
+    { icon: "close-circle" as const, label: "Failed", value: failedProjects, color: Colors.dark.error },
+    { icon: "list" as const, label: "Tasks", value: totalTasks, color: Colors.dark.info },
+    { icon: "hourglass" as const, label: "Processing", value: processingProjects, color: Colors.dark.warning },
+  ];
 
   return (
     <View style={styles.container}>
@@ -46,7 +61,7 @@ export default function DashboardScreen() {
         style={StyleSheet.absoluteFill}
       />
       <FlatList
-        data={projects}
+        data={recentProjects}
         keyExtractor={(item) => item.id}
         contentContainerStyle={[
           styles.listContent,
@@ -87,14 +102,44 @@ export default function DashboardScreen() {
               </Pressable>
             </View>
 
-            <View style={styles.statsRow}>
-              <StatCard icon="camera" label="Media" value={totalMedia} color={Colors.dark.info} />
-              <StatCard icon="checkbox" label="Tasks" value={totalTasks} color={Colors.dark.accentLight} />
-              <StatCard icon="cloud-upload" label="Pending" value={pendingSync} color={Colors.dark.warning} />
+            <View style={styles.statsGrid}>
+              <View style={styles.statsRow}>
+                {stats.slice(0, 3).map((stat) => (
+                  <StatCard key={stat.label} icon={stat.icon} label={stat.label} value={stat.value} color={stat.color} />
+                ))}
+              </View>
+              <View style={styles.statsRow}>
+                {stats.slice(3).map((stat) => (
+                  <StatCard key={stat.label} icon={stat.icon} label={stat.label} value={stat.value} color={stat.color} />
+                ))}
+              </View>
             </View>
 
-            {projects.length > 0 ? (
-              <Text style={styles.sectionTitle}>Projects</Text>
+            <Pressable
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                router.push("/new-project");
+              }}
+              style={({ pressed }) => [pressed && styles.createBtnPressed]}
+            >
+              <LinearGradient
+                colors={[Colors.dark.accentGradientStart, Colors.dark.accentGradientEnd]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.createBtn}
+              >
+                <Ionicons name="add-circle" size={22} color="#FFF" />
+                <Text style={styles.createBtnText}>Create Project</Text>
+              </LinearGradient>
+            </Pressable>
+
+            {recentProjects.length > 0 ? (
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>Recent Projects</Text>
+                <Pressable onPress={() => router.push("/(tabs)/projects")}>
+                  <Text style={styles.seeAll}>See All →</Text>
+                </Pressable>
+              </View>
             ) : null}
           </View>
         }
@@ -110,13 +155,13 @@ export default function DashboardScreen() {
           </View>
         )}
         ListEmptyComponent={
-          <EmptyState
-            icon="business-outline"
-            title="No projects yet"
-            subtitle="Create your first project to start capturing field data"
-            actionLabel="New Project"
-            onAction={() => router.push("/new-project")}
-          />
+          <View style={styles.emptyContainer}>
+            <View style={styles.emptyIconBg}>
+              <Ionicons name="folder-open-outline" size={48} color={Colors.dark.accentSoft} />
+            </View>
+            <Text style={styles.emptyTitle}>No projects yet</Text>
+            <Text style={styles.emptySubtitle}>Create your first project to start capturing field data</Text>
+          </View>
         }
       />
     </View>
@@ -172,7 +217,7 @@ const styles = StyleSheet.create({
   greeting: {
     fontSize: 32,
     fontFamily: "Inter_700Bold",
-    color: Colors.dark.lavender,
+    color: "#FFFFFF",
     letterSpacing: -0.5,
   },
   subtitle: {
@@ -196,9 +241,12 @@ const styles = StyleSheet.create({
     opacity: 0.8,
     transform: [{ scale: 0.92 }],
   },
+  statsGrid: {
+    gap: 10,
+  },
   statsRow: {
     flexDirection: "row",
-    gap: 12,
+    gap: 10,
   },
   statCard: {
     flex: 1,
@@ -208,37 +256,91 @@ const styles = StyleSheet.create({
     borderColor: Colors.dark.glassBorder,
   },
   statGradient: {
-    padding: 14,
+    flex: 1,
+    padding: 12,
     alignItems: "center",
-    gap: 6,
-    borderRadius: 15,
+    gap: 4,
+    borderRadius: 16,
   },
   statIconBg: {
-    width: 36,
-    height: 36,
-    borderRadius: 12,
+    width: 32,
+    height: 32,
+    borderRadius: 10,
     alignItems: "center",
     justifyContent: "center",
   },
   statValue: {
-    fontSize: 22,
+    fontSize: 20,
     fontFamily: "Inter_700Bold",
     color: Colors.dark.text,
   },
   statLabel: {
-    fontSize: 11,
+    fontSize: 10,
     fontFamily: "Inter_500Medium",
     color: Colors.dark.textMuted,
     textTransform: "uppercase" as const,
-    letterSpacing: 0.5,
+    letterSpacing: 0.3,
+    textAlign: "center",
+  },
+  createBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+    paddingVertical: 16,
+    borderRadius: 16,
+  },
+  createBtnPressed: {
+    opacity: 0.85,
+    transform: [{ scale: 0.98 }],
+  },
+  createBtnText: {
+    fontSize: 17,
+    fontFamily: "Inter_600SemiBold",
+    color: "#FFF",
+  },
+  sectionHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginTop: 4,
   },
   sectionTitle: {
     fontSize: 16,
     fontFamily: "Inter_600SemiBold",
     color: Colors.dark.textSecondary,
-    marginTop: 4,
+  },
+  seeAll: {
+    fontSize: 13,
+    fontFamily: "Inter_500Medium",
+    color: Colors.dark.accentSoft,
   },
   cardWrapper: {
     marginBottom: 12,
+  },
+  emptyContainer: {
+    alignItems: "center",
+    paddingTop: 32,
+    gap: 12,
+  },
+  emptyIconBg: {
+    width: 80,
+    height: 80,
+    borderRadius: 24,
+    backgroundColor: Colors.dark.accent + '15',
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  emptyTitle: {
+    fontSize: 18,
+    fontFamily: "Inter_600SemiBold",
+    color: Colors.dark.text,
+  },
+  emptySubtitle: {
+    fontSize: 14,
+    fontFamily: "Inter_400Regular",
+    color: Colors.dark.textMuted,
+    textAlign: "center",
+    maxWidth: 260,
   },
 });

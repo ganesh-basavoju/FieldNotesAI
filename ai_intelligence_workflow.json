@@ -1,0 +1,244 @@
+{
+    "name": "FieldNotes AI Intelligence Chat",
+    "nodes": [
+        {
+            "parameters": {
+                "httpMethod": "POST",
+                "path": "ai-intelligence-chat",
+                "responseMode": "lastNode",
+                "options": {
+                    "rawBody": false
+                }
+            },
+            "id": "webhook-trigger",
+            "name": "Webhook Trigger",
+            "type": "n8n-nodes-base.webhook",
+            "typeVersion": 2,
+            "position": [
+                220,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "conditions": {
+                    "options": {
+                        "caseSensitive": false,
+                        "leftValue": "",
+                        "typeValidation": "strict"
+                    },
+                    "conditions": [
+                        {
+                            "id": "mode-job",
+                            "leftValue": "={{ $json.body.mode }}",
+                            "rightValue": "job",
+                            "operator": {
+                                "type": "string",
+                                "operation": "equals"
+                            }
+                        }
+                    ],
+                    "combinator": "and"
+                },
+                "options": {}
+            },
+            "id": "mode-switch",
+            "name": "Mode Switch",
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 2,
+            "position": [
+                440,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "jsCode": "const body = $input.first().json.body;\nconst query = body.query;\nconst context = body.context || [];\nconst history = body.conversationHistory || [];\nconst jobCtx = context[0] || {};\n\nlet contextText = `## Job: ${jobCtx.projectName || 'Unknown'} (ID: ${jobCtx.jobId || 'N/A'})\\n`;\ncontextText += `Mode: ${jobCtx.mode || 'N/A'} | Created: ${jobCtx.createdAt || 'N/A'}\\n`;\n\nif (jobCtx.approvalStatus) {\n  contextText += `Approval: ${jobCtx.approvalStatus}`;\n  if (jobCtx.approvedBy) contextText += ` by ${jobCtx.approvedBy}`;\n  if (jobCtx.approvedAt) contextText += ` on ${jobCtx.approvedAt}`;\n  contextText += '\\n';\n}\n\nif (jobCtx.summary) {\n  contextText += `\\n### Summary\\n${jobCtx.summary}\\n`;\n}\n\nif (jobCtx.tasks && jobCtx.tasks.length > 0) {\n  contextText += `\\n### Tasks (${jobCtx.tasks.length})\\n`;\n  jobCtx.tasks.forEach(t => {\n    contextText += `- [${t.status}] ${t.title} (${t.priority}) - ${t.description}\\n`;\n  });\n}\n\nif (jobCtx.issues && jobCtx.issues.length > 0) {\n  contextText += `\\n### Issues (${jobCtx.issues.length})\\n`;\n  jobCtx.issues.forEach(i => {\n    contextText += `- ${i.title}: ${i.description}${i.severity ? ' [' + i.severity + ']' : ''}\\n`;\n  });\n}\n\nif (jobCtx.changeOrders && jobCtx.changeOrders.length > 0) {\n  contextText += `\\n### Change Orders (${jobCtx.changeOrders.length})\\n`;\n  jobCtx.changeOrders.forEach(c => {\n    contextText += `- ${c.title}: ${c.description}\\n`;\n  });\n}\n\nif (jobCtx.transcriptExcerpts && jobCtx.transcriptExcerpts.length > 0) {\n  contextText += `\\n### Transcript Excerpts (${jobCtx.transcriptExcerpts.length})\\n`;\n  jobCtx.transcriptExcerpts.slice(0, 30).forEach(t => {\n    contextText += `${t.speaker ? '[' + t.speaker + '] ' : ''}${t.text}\\n`;\n  });\n}\n\nlet historyText = '';\nif (history.length > 0) {\n  historyText = '\\n## Previous Conversation\\n';\n  history.forEach(h => {\n    historyText += `${h.role === 'user' ? 'User' : 'Assistant'}: ${h.content}\\n`;\n  });\n}\n\nconst systemPrompt = `You are an AI assistant for a construction field notes application. You are in JOB-LEVEL mode.\\n\\nRules:\\n1. ONLY answer based on the provided context data.\\n2. If the information is not in the context, say so clearly.\\n3. Provide source references when possible.\\n4. Be concise but thorough.\\n5. Format your response clearly with bullet points where appropriate.`;\n\nconst userPrompt = `${contextText}${historyText}\\n## Current Question\\n${query}`;\n\nreturn { systemPrompt, userPrompt, query, jobContext: jobCtx };"
+            },
+            "id": "job-context-formatter",
+            "name": "Job Context Formatter",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                660,
+                180
+            ]
+        },
+        {
+            "parameters": {
+                "jsCode": "const body = $input.first().json.body;\nconst query = body.query;\nconst context = body.context || [];\nconst history = body.conversationHistory || [];\nconst userName = body.userName || 'User';\n\nlet contextText = `## Portfolio Overview for ${userName}\\n`;\ncontextText += `Total Jobs: ${context.length}\\n\\n`;\n\ncontext.forEach((job, idx) => {\n  contextText += `### Job ${idx + 1}: ${job.projectName} (ID: ${job.jobId})\\n`;\n  contextText += `Mode: ${job.mode} | Created: ${job.createdAt}\\n`;\n  if (job.approvalStatus) {\n    contextText += `Status: ${job.approvalStatus}`;\n    if (job.approvedBy) contextText += ` by ${job.approvedBy}`;\n    contextText += '\\n';\n  }\n  if (job.summary) {\n    contextText += `Summary: ${job.summary.substring(0, 200)}\\n`;\n  }\n  if (job.tasks && job.tasks.length > 0) {\n    const openTasks = job.tasks.filter(t => t.status === 'open' || t.status === 'in_progress');\n    contextText += `Tasks: ${job.tasks.length} total (${openTasks.length} open)\\n`;\n    job.tasks.slice(0, 10).forEach(t => {\n      contextText += `  - [${t.status}] ${t.title} (${t.priority})\\n`;\n    });\n  }\n  if (job.issues && job.issues.length > 0) {\n    contextText += `Issues: ${job.issues.length}\\n`;\n    job.issues.slice(0, 5).forEach(i => {\n      contextText += `  - ${i.title}${i.severity ? ' [' + i.severity + ']' : ''}\\n`;\n    });\n  }\n  if (job.changeOrders && job.changeOrders.length > 0) {\n    contextText += `Change Orders: ${job.changeOrders.length}\\n`;\n  }\n  contextText += '\\n';\n});\n\nlet historyText = '';\nif (history.length > 0) {\n  historyText = '\\n## Previous Conversation\\n';\n  history.forEach(h => {\n    historyText += `${h.role === 'user' ? 'User' : 'Assistant'}: ${h.content}\\n`;\n  });\n}\n\nconst systemPrompt = `You are an AI assistant for a construction field notes application. You are in PORTFOLIO mode.\\n\\nRules:\\n1. ONLY answer based on the provided context data.\\n2. When referencing a specific job, always mention the job name and ID.\\n3. Identify patterns, trends, and risks across jobs when relevant.\\n4. Highlight overdue items, unresolved issues, and scope changes.\\n5. Be concise but thorough.\\n6. Format your response clearly with bullet points and job references.`;\n\nconst userPrompt = `${contextText}${historyText}\\n## Current Question\\n${query}`;\n\nreturn { systemPrompt, userPrompt, query, jobCount: context.length };"
+            },
+            "id": "portfolio-context-formatter",
+            "name": "Portfolio Context Formatter",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                660,
+                420
+            ]
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent",
+                "authentication": "genericCredentialType",
+                "genericAuthType": "httpQueryAuth",
+                "sendBody": true,
+                "specifyBody": "json",
+                "jsonBody": "={\n  \"contents\": [\n    {\n      \"role\": \"user\",\n      \"parts\": [{ \"text\": {{ JSON.stringify($json.systemPrompt + '\\n\\n' + $json.userPrompt) }} }]\n    }\n  ],\n  \"generationConfig\": {\n    \"temperature\": 0.3,\n    \"maxOutputTokens\": 2048\n  }\n}",
+                "options": {
+                    "timeout": 60000
+                }
+            },
+            "id": "gemini-job",
+            "name": "Gemini (Job Mode)",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                900,
+                180
+            ],
+            "credentials": {
+                "httpQueryAuth": {
+                    "id": "YOUR_QUERY_AUTH_CREDENTIAL_ID",
+                    "name": "Gemini API Key"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent",
+                "authentication": "genericCredentialType",
+                "genericAuthType": "httpQueryAuth",
+                "sendBody": true,
+                "specifyBody": "json",
+                "jsonBody": "={\n  \"contents\": [\n    {\n      \"role\": \"user\",\n      \"parts\": [{ \"text\": {{ JSON.stringify($json.systemPrompt + '\\n\\n' + $json.userPrompt) }} }]\n    }\n  ],\n  \"generationConfig\": {\n    \"temperature\": 0.3,\n    \"maxOutputTokens\": 2048\n  }\n}",
+                "options": {
+                    "timeout": 60000
+                }
+            },
+            "id": "gemini-portfolio",
+            "name": "Gemini (Portfolio Mode)",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                900,
+                420
+            ],
+            "credentials": {
+                "httpQueryAuth": {
+                    "id": "YOUR_QUERY_AUTH_CREDENTIAL_ID",
+                    "name": "Gemini API Key"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "jsCode": "const input = $input.first().json;\nlet aiResponse = '';\ntry {\n  aiResponse = input.candidates[0].content.parts[0].text || '';\n} catch (e) {\n  aiResponse = 'Sorry, I could not generate a response. Please try again.';\n}\n\nconst prevData = $('Job Context Formatter').first()?.json || {};\nconst jobCtx = prevData.jobContext || {};\nconst sources = [];\nif (jobCtx.projectName) {\n  sources.push({\n    projectName: jobCtx.projectName,\n    jobId: jobCtx.jobId || '',\n    type: 'summary',\n    excerpt: (jobCtx.summary || '').substring(0, 100),\n    date: jobCtx.createdAt || ''\n  });\n}\n\nreturn { answer: aiResponse, sources, mode: 'job', processedAt: new Date().toISOString() };"
+            },
+            "id": "job-response-formatter",
+            "name": "Job Response Formatter",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                1140,
+                180
+            ]
+        },
+        {
+            "parameters": {
+                "jsCode": "const input = $input.first().json;\nlet aiResponse = '';\ntry {\n  aiResponse = input.candidates[0].content.parts[0].text || '';\n} catch (e) {\n  aiResponse = 'Sorry, I could not generate a response. Please try again.';\n}\n\nconst prevData = $('Portfolio Context Formatter').first()?.json || {};\n\nreturn {\n  answer: aiResponse,\n  sources: [],\n  mode: 'portfolio',\n  jobCount: prevData.jobCount || 0,\n  processedAt: new Date().toISOString()\n};"
+            },
+            "id": "portfolio-response-formatter",
+            "name": "Portfolio Response Formatter",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                1140,
+                420
+            ]
+        }
+    ],
+    "connections": {
+        "Webhook Trigger": {
+            "main": [
+                [
+                    {
+                        "node": "Mode Switch",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Mode Switch": {
+            "main": [
+                [
+                    {
+                        "node": "Job Context Formatter",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "Portfolio Context Formatter",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Job Context Formatter": {
+            "main": [
+                [
+                    {
+                        "node": "Gemini (Job Mode)",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Portfolio Context Formatter": {
+            "main": [
+                [
+                    {
+                        "node": "Gemini (Portfolio Mode)",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Gemini (Job Mode)": {
+            "main": [
+                [
+                    {
+                        "node": "Job Response Formatter",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Gemini (Portfolio Mode)": {
+            "main": [
+                [
+                    {
+                        "node": "Portfolio Response Formatter",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    },
+    "settings": {
+        "executionOrder": "v1"
+    },
+    "staticData": null,
+    "tags": [],
+    "triggerCount": 1
+}

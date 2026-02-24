@@ -4,7 +4,26 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import Colors from '@/constants/colors';
-import type { Project } from '@/lib/types';
+import type { Project, WebhookStatus } from '@/lib/types';
+
+const MODE_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
+  photo_speak: 'camera-outline',
+  walkthrough: 'walk-outline',
+  voice_only: 'mic-outline',
+};
+
+const MODE_LABELS: Record<string, string> = {
+  photo_speak: 'Photo + Voice',
+  walkthrough: 'Walkthrough',
+  voice_only: 'Voice Note',
+};
+
+const STATUS_CONFIG: Record<WebhookStatus, { label: string; color: string; icon: keyof typeof Ionicons.glyphMap }> = {
+  pending: { label: 'Pending', color: Colors.dark.warning, icon: 'time-outline' },
+  sent: { label: 'Processing', color: Colors.dark.info, icon: 'hourglass-outline' },
+  received: { label: 'Completed', color: Colors.dark.success, icon: 'checkmark-circle' },
+  failed: { label: 'Failed', color: Colors.dark.error, icon: 'close-circle' },
+};
 
 interface ProjectCardProps {
   project: Project;
@@ -13,6 +32,9 @@ interface ProjectCardProps {
 
 export function ProjectCard({ project, onPress }: ProjectCardProps) {
   const timeAgo = getTimeAgo(project.updatedAt);
+  const status = STATUS_CONFIG[project.webhookStatus] || STATUS_CONFIG.pending;
+  const modeIcon = MODE_ICONS[project.mode] || 'document-outline';
+  const modeLabel = MODE_LABELS[project.mode] || project.mode;
 
   const handlePress = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -37,16 +59,36 @@ export function ProjectCard({ project, onPress }: ProjectCardProps) {
             end={{ x: 1, y: 1 }}
             style={styles.iconContainer}
           >
-            <Ionicons name="business" size={20} color={Colors.dark.accentSoft} />
+            <Ionicons name={modeIcon} size={20} color={Colors.dark.accentSoft} />
           </LinearGradient>
           <View style={styles.headerText}>
             <Text style={styles.name} numberOfLines={1}>{project.name}</Text>
-            <Text style={styles.client} numberOfLines={1}>{project.clientName}</Text>
+            <Text style={styles.jobId} numberOfLines={1}>Job: {project.jobId}</Text>
           </View>
-          <Ionicons name="chevron-forward" size={20} color={Colors.dark.textMuted} />
+          <View style={[styles.statusBadge, { backgroundColor: status.color + '18' }]}>
+            <Ionicons name={status.icon} size={12} color={status.color} />
+            <Text style={[styles.statusText, { color: status.color }]}>{status.label}</Text>
+          </View>
         </View>
 
-        <Text style={styles.address} numberOfLines={1}>{project.address}</Text>
+        <View style={styles.metaRow}>
+          <View style={styles.metaItem}>
+            <Ionicons name={modeIcon} size={13} color={Colors.dark.textMuted} />
+            <Text style={styles.metaText}>{modeLabel}</Text>
+          </View>
+          {project.participants && project.participants.length > 0 && (
+            <View style={styles.metaItem}>
+              <Ionicons name="people-outline" size={13} color={Colors.dark.textMuted} />
+              <Text style={styles.metaText}>{project.participants.length}</Text>
+            </View>
+          )}
+          {project.scopes && project.scopes.length > 0 && (
+            <View style={styles.metaItem}>
+              <Ionicons name="layers-outline" size={13} color={Colors.dark.textMuted} />
+              <Text style={styles.metaText}>{project.scopes.length} scope{project.scopes.length !== 1 ? 's' : ''}</Text>
+            </View>
+          )}
+        </View>
 
         <View style={styles.stats}>
           <View style={styles.stat}>
@@ -56,12 +98,6 @@ export function ProjectCard({ project, onPress }: ProjectCardProps) {
           <View style={styles.stat}>
             <Ionicons name="checkbox-outline" size={14} color={Colors.dark.textMuted} />
             <Text style={styles.statValue}>{project.taskCount}</Text>
-          </View>
-          <View style={styles.stat}>
-            <Ionicons name="alert-circle-outline" size={14} color={project.openTaskCount > 0 ? Colors.dark.warning : Colors.dark.textMuted} />
-            <Text style={[styles.statValue, project.openTaskCount > 0 && { color: Colors.dark.warning }]}>
-              {project.openTaskCount} open
-            </Text>
           </View>
           <Text style={styles.timeAgo}>{timeAgo}</Text>
         </View>
@@ -118,17 +154,41 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter_600SemiBold',
     color: Colors.dark.text,
   },
-  client: {
+  jobId: {
     fontSize: 13,
     fontFamily: 'Inter_400Regular',
     color: Colors.dark.textSecondary,
     marginTop: 1,
   },
-  address: {
-    fontSize: 13,
-    fontFamily: 'Inter_400Regular',
-    color: Colors.dark.textMuted,
+  statusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  statusText: {
+    fontSize: 10,
+    fontFamily: 'Inter_600SemiBold',
+    textTransform: 'uppercase' as const,
+  },
+  metaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
     paddingLeft: 54,
+  },
+  metaItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  metaText: {
+    fontSize: 12,
+    fontFamily: 'Inter_500Medium',
+    color: Colors.dark.textMuted,
+    textTransform: 'capitalize' as const,
   },
   stats: {
     flexDirection: 'row',

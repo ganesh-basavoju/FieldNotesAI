@@ -19,7 +19,7 @@ import {
 
 SplashScreen.preventAutoHideAsync();
 
-function RootLayoutNav() {
+function AppNav() {
   return (
     <Stack screenOptions={{ headerBackTitle: "Back" }}>
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
@@ -51,17 +51,21 @@ function RootLayoutNav() {
           animation: "slide_from_right",
         }}
       />
-      <Stack.Screen name="(auth)" options={{ headerShown: false }} />
       <Stack.Screen
         name="new-project"
         options={{
-          presentation: "formSheet",
-          sheetAllowedDetents: [0.65],
-          sheetGrabberVisible: true,
           headerShown: false,
-          contentStyle: { backgroundColor: "#120B1E" },
+          animation: "slide_from_right",
         }}
       />
+      <Stack.Screen
+        name="profile"
+        options={{
+          headerShown: false,
+          animation: "slide_from_right",
+        }}
+      />
+      <Stack.Screen name="(auth)" options={{ headerShown: false }} />
     </Stack>
   );
 }
@@ -91,7 +95,7 @@ export default function RootLayout() {
         <GestureHandlerRootView style={{ flex: 1, backgroundColor: "#0D0816" }}>
           <KeyboardProvider>
             <StatusBar style="light" />
-            <RootLayoutNav />
+            <AppNav />
           </KeyboardProvider>
         </GestureHandlerRootView>
       </QueryClientProvider>

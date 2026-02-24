@@ -142,10 +142,10 @@ export default function SessionReviewScreen() {
               <Text style={styles.sectionTitle}>Daily Log Summary</Text>
             </View>
             <View style={styles.summaryCard}>
-              {wr.dailyLog.summaryBullets.map((bullet, idx) => (
-                <View key={idx} style={styles.bulletRow}>
+              {wr.dailyLog.summaryBullets.map((bullet: any, idx: number) => (
+                <View key={bullet.bulletId || idx} style={styles.bulletRow}>
                   <View style={styles.bulletDot} />
-                  <Text style={styles.bulletText}>{bullet}</Text>
+                  <Text style={styles.bulletText}>{typeof bullet === 'string' ? bullet : bullet.text}</Text>
                 </View>
               ))}
             </View>

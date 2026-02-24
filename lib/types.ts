@@ -1,16 +1,18 @@
 export type SyncStatus = 'captured' | 'syncing' | 'uploaded' | 'failed';
 
-export type CaptureMode = 'photo_speak' | 'walkthrough' | 'voice_only';
+export type CaptureMode = 'photo_speak' | 'walkthrough' | 'voice_only' | 'upload_audio' | 'upload_transcript';
+
+export type WebhookStatus = 'pending' | 'sent' | 'received' | 'failed';
 
 export type SessionType = 'walkthrough' | 'meeting';
 
 export type MeetingType = 'scope' | 'schedule' | 'material' | 'vendor' | 'internal';
 
-export type ParticipantRole = 'pm' | 'sub' | 'owner' | 'vendor' | 'internal';
+export type ParticipantRole = string;
 
 export type ConsentMethod = 'verbal' | 'written' | 'contract';
 
-export type ApprovalStatus = 'pending' | 'approved' | 'rejected';
+export type ApprovalStatus = 'pending' | 'approved' | 'rejected' | 'discarded';
 
 export type TaskStatus = 'open' | 'in_progress' | 'blocked' | 'done';
 
@@ -31,8 +33,7 @@ export interface AuthUser {
 
 export interface Participant {
   name: string;
-  role: ParticipantRole;
-  email?: string;
+  role: string;
 }
 
 export interface ConsentRecord {
@@ -52,8 +53,15 @@ export interface MeetingMetadata {
 export interface Project {
   id: string;
   name: string;
-  address: string;
-  clientName: string;
+  jobId: string;
+  mode: CaptureMode;
+  scopes: string[];
+  participants: Participant[];
+  consentMethod: ConsentMethod;
+  consentGiven: boolean;
+  webhookStatus: WebhookStatus;
+  address?: string;
+  clientName?: string;
   createdAt: number;
   updatedAt: number;
   mediaCount: number;
@@ -107,7 +115,9 @@ export interface TranscriptSegment {
   startMs: number;
   endMs: number;
   speakerRole?: string;
+  speaker?: string;
   confidence: number;
+  diarizationConfidence?: number;
 }
 
 export interface TaskItem {
@@ -125,6 +135,7 @@ export interface TaskItem {
   updatedAt: number;
   createdBy: LinkCreator;
   confidence?: number;
+  suggestedAssignee?: string;
 }
 
 export interface EvidenceLink {
@@ -138,6 +149,13 @@ export interface EvidenceLink {
   createdAt: number;
 }
 
+export interface NoteVersion {
+  version: number;
+  editedAt: number;
+  editedBy: string;
+  summaryText: string;
+}
+
 export interface CaptureSession {
   id: string;
   projectId: string;
@@ -149,12 +167,15 @@ export interface CaptureSession {
   endedAt?: number;
   mediaIds: string[];
   audioIds: string[];
-  webhookStatus: 'pending' | 'sent' | 'received' | 'failed';
+  webhookStatus: WebhookStatus;
   webhookResult?: WebhookResult;
   meetingMetadata?: MeetingMetadata;
   approvalStatus?: ApprovalStatus;
   approvedAt?: number;
   approvedBy?: string;
+  editedSummary?: string;
+  summaryVersions?: NoteVersion[];
+  uploadedFileUri?: string;
 }
 
 export interface WebhookIssue {
@@ -184,7 +205,7 @@ export interface WebhookChangeOrder {
 }
 
 export interface WebhookDailyLog {
-  summaryBullets: string[];
+  summaryBullets: any[];
   confidence?: number;
 }
 
@@ -204,6 +225,11 @@ export interface WebhookResult {
   dailyLog?: WebhookDailyLog;
   audit?: WebhookAudit;
   processedAt: number;
+  // Transcript upload specific fields
+  rawTranscript?: any[];
+  editedSummary?: { text: string; confidence: number; version: number };
+  actionItems?: { pm: any[]; otherParties: any[] };
+  qualityScoring?: { transcriptConfidence: number; diarizationConfidence: number };
 }
 
 export interface SyncQueueItem {

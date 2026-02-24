@@ -1,0 +1,106 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "c42e858c-d96e-4761-aebf-b364cf62a132",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [0, 0],
+      "id": "7b59ce03-40d2-4f6e-a7f6-04e2bc19b30e",
+      "name": "Webhook",
+      "webhookId": "c42e858c-d96e-4761-aebf-b364cf62a132"
+    },
+    {
+      "parameters": {
+        "resource": "audio",
+        "operation": "analyze",
+        "modelId": {
+          "__rl": true,
+          "value": "models/gemini-2.5-flash",
+          "mode": "list",
+          "cachedResultName": "models/gemini-2.5-flash"
+        },
+        "text": "=You are an AI system that converts FIELD AUDIO NOTES into STRUCTURED, EVIDENCE-LINKED WORK ITEMS for construction and insurance documentation.\n\nThis is an EVIDENCE-FIRST FIELD CAPTURE SYSTEM with SPEAKER DIARIZATION.\n\n────────────────────────\nINPUTS YOU WILL RECEIVE\n────────────────────────\n1. Project metadata (from JSON body):\n   - projectId, sessionId, jobId\n   - sessionType, capturedAt\n   - area (scopes / meeting types)\n   - participants: [{name, role}] — use as DIARIZATION HINTS\n   - consent: {method, given, timestamp}\n\n2. Media assets:\n   - mediaAssetId, type (photo/video), capturedAt, area, tags\n\n3. Audio notes:\n   - audioNoteId, linkedMediaAssetIds, capturedAt, area\n   - raw transcript segments with timestamps\n\n────────────────────────\nCORE RULES (NON-NEGOTIABLE)\n────────────────────────\n1. DO NOT hallucinate tasks, links, or areas.\n2. DO NOT guess intent.\n3. Every structured output MUST reference:\n   - source_audio_note_id\n   - source_transcript_segment_ids\n4. If confidence < 0.5 → DO NOT create item.\n5. Linking must be explainable and reversible.\n\n────────────────────────\nSPEAKER DIARIZATION RULES\n────────────────────────\n- Use the pre-entered participants list as HINTS, not assumptions.\n- Label speakers as: Role (Name) — e.g. \"PM (Ganesh)\", \"Sub (Lalit)\"\n- If a speaker cannot be confidently matched → label as \"Unknown Speaker\"\n- NEVER guess or assume speaker identity without strong evidence.\n- Provide diarizationConfidence per segment (0-1).\n- Each transcript segment must include a \"speaker\" field.\n\n────────────────────────\nTRANSCRIPT PROCESSING\n────────────────────────\n- Preserve transcript segments as atomic units.\n- Do NOT rewrite timestamps.\n- Do NOT merge unrelated segments.\n- Add speaker labels to each segment.\n\n────────────────────────\nEXTRACT THE FOLLOWING OUTPUT TYPES\n────────────────────────\n\nA) TASK ITEMS\nCreate ONLY when there is a clear action:\n- \"demo\", \"remove\", \"install\", \"call\", \"schedule\", \"need to\", \"before inspection\"\n\nTask fields:\n- taskId (generate stable id)\n- title (imperative)\n- description (what / where / why)\n- status: Open\n- priority: Low | Medium | High\n- dueDate (ONLY if explicit)\n- suggestedAssignee (optional — from participants)\n- tags: trade, phase, area\n- source_audio_note_id\n- source_transcript_segment_ids\n- confidence (0–1)\n\nB) ISSUES / RISKS\nOnly when risk or concern is stated:\n- mold, structural, water damage, access issue\n\nC) QUESTIONS TO OFFICE\nOnly explicit asks:\n- \"need approval\", \"check with insurance\", \"need quote\"\n\nD) CHANGE ORDER CANDIDATES\nOnly when customer intent is stated:\n- \"homeowner wants\", \"upgrade\", \"add\"\n\nE) STRUCTURED SUMMARY (dailyLog)\nFocus specifically on:\n- Decisions made during the session\n- Agreements reached between participants\n- Clarifications provided\n- Scope changes discussed\n- Scheduling constraints mentioned\n- Deadlines referenced\n- Work performed\n- Materials mentioned\n- Trades on site\n- Customer requests\n\nEach bullet must include source references.\n\n────────────────────────\nLINKING RULES\n────────────────────────\nFor every task / issue / question / CO:\n- linkMediaAssetIds (array)\n- linkTranscriptSegmentIds (array)\n\nLink when:\n- Direct attachment exists\n- Time proximity ≤ 20 seconds\n- Area matches\n- Keyword overlap exists\n\nIf no strong link → return empty array.\n\n────────────────────────\nCONFIDENCE & QUALITY SCORING\n────────────────────────\nProvide:\n- transcriptConfidence: overall transcript accuracy (0-1)\n- diarizationConfidence: overall speaker identification accuracy (0-1)\n- Per-segment confidence and diarizationConfidence\n\n────────────────────────\nOUTPUT FORMAT (STRICT JSON)\n────────────────────────\nReturn ONLY valid JSON. No markdown. No comments.\n\n{\n  \"projectId\": \"string\",\n  \"sessionId\": \"string\",\n  \"jobId\": \"string\",\n  \"area\": \"string\",\n\n  \"transcriptSegments\": [\n    {\n      \"segmentId\": \"string\",\n      \"audioNoteId\": \"string\",\n      \"time\": \"MM:SS\",\n      \"text\": \"verbatim\",\n      \"speaker\": \"Role (Name) or Unknown Speaker\",\n      \"confidence\": 0.0,\n      \"diarizationConfidence\": 0.0\n    }\n  ],\n\n  \"tasks\": [],\n  \"issues\": [],\n  \"questions\": [],\n  \"changeOrderCandidates\": [],\n\n  \"dailyLog\": {\n    \"summaryBullets\": [\n      {\n        \"bulletId\": \"string\",\n        \"text\": \"string\",\n        \"category\": \"decision | agreement | clarification | scope_change | scheduling | deadline | work_performed | material | trade | customer_request\",\n        \"source_audio_note_id\": \"string\",\n        \"source_transcript_segment_ids\": [],\n        \"linkTranscriptSegmentIds\": []\n      }\n    ],\n    \"confidence\": 0.0\n  },\n\n  \"qualityScoring\": {\n    \"transcriptConfidence\": 0.0,\n    \"diarizationConfidence\": 0.0\n  },\n\n  \"audit\": {\n    \"aiModel\": \"Gemini\",\n    \"pipelineVersion\": \"3.0\",\n    \"processedAt\": \"ISO_TIMESTAMP\"\n  }\n}\n\nPROCESS NOW.\nRETURN ONLY JSON.\n",
+        "inputType": "binary",
+        "binaryPropertyName": "file",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1,
+      "position": [208, 0],
+      "id": "484e2470-10e1-48c8-803a-8708a220652b",
+      "name": "Analyze audio",
+      "retryOnFail": true,
+      "credentials": {
+        "googlePalmApi": {
+          "id": "Icz3qoaROWeSqzkS",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// 1. Get raw Gemini text output\nconst rawText =\n  $input.first().json.content.parts[0].text;\n\n// 2. Clean markdown fences\nconst cleanedText = rawText\n  .replace(/```json/g, '')\n  .replace(/```/g, '')\n  .trim();\n\n// 3. Parse JSON\nlet parsed;\ntry {\n  parsed = JSON.parse(cleanedText);\n} catch (err) {\n  throw new Error('Invalid JSON from Gemini: ' + err.message);\n}\n\n// 4. Validate required top-level keys\nconst requiredKeys = [\n  'projectId',\n  'sessionId',\n  'area',\n  'transcriptSegments',\n  'tasks',\n  'issues',\n  'questions',\n  'changeOrderCandidates',\n  'dailyLog',\n  'audit'\n];\n\nfor (const key of requiredKeys) {\n  if (!(key in parsed)) {\n    throw new Error(`Missing required key: ${key}`);\n  }\n}\n\n// 5. Ensure dailyLog.summaryBullets are objects with text field\nif (parsed.dailyLog && Array.isArray(parsed.dailyLog.summaryBullets)) {\n  parsed.dailyLog.summaryBullets = parsed.dailyLog.summaryBullets.map((bullet, idx) => {\n    if (typeof bullet === 'string') {\n      return {\n        bulletId: `bullet_auto_${idx}`,\n        text: bullet,\n        category: 'work_performed',\n        source_audio_note_id: '',\n        source_transcript_segment_ids: [],\n        linkTranscriptSegmentIds: []\n      };\n    }\n    return bullet;\n  });\n}\n\n// 6. Ensure transcript segments have speaker field\nif (Array.isArray(parsed.transcriptSegments)) {\n  parsed.transcriptSegments = parsed.transcriptSegments.map(seg => ({\n    ...seg,\n    speaker: seg.speaker || 'Unknown Speaker',\n    diarizationConfidence: seg.diarizationConfidence || 0\n  }));\n}\n\n// 7. Return clean validated JSON\nreturn {\n  json: parsed\n};\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [416, 0],
+      "id": "0f0c4648-af4a-49aa-bb65-1d9b63556c40",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [624, 0],
+      "id": "01422b28-dba6-4f5b-a2b0-e04ad82b2e72",
+      "name": "Respond to Webhook"
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Analyze audio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze audio": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "8ac1381177916585b7d6f59c47b664e3a554c0eb6b55144045d454d30a938273"
+  }
+}
