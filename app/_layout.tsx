@@ -16,6 +16,8 @@ import {
   Inter_600SemiBold,
   Inter_700Bold,
 } from "@expo-google-fonts/inter";
+import { useNetworkStatus, runPendingSync } from "@/lib/offline-sync";
+import { useRef } from "react";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -72,6 +74,9 @@ function AppNav() {
 
 export default function RootLayout() {
   const loadAll = useAppStore((s) => s.loadAll);
+  const authToken = useAppStore((s) => s.authToken);
+  const network = useNetworkStatus();
+  const lastSyncRef = useRef(0);
 
   const [fontsLoaded] = useFonts({
     ...Ionicons.font,
@@ -86,6 +91,20 @@ export default function RootLayout() {
       if (fontsLoaded) SplashScreen.hideAsync();
     });
   }, [fontsLoaded]);
+
+  // Auto-sync pending items when connectivity is restored (WhatsApp-style)
+  useEffect(() => {
+    if (network.isConnected && network.isInternetReachable && authToken) {
+      const now = Date.now();
+      // Throttle: don't sync more than once every 10 seconds
+      if (now - lastSyncRef.current > 10_000) {
+        lastSyncRef.current = now;
+        runPendingSync().catch((err) =>
+          console.warn('[AutoSync] Failed:', err)
+        );
+      }
+    }
+  }, [network.isConnected, network.isInternetReachable, authToken]);
 
   if (!fontsLoaded) return null;
 

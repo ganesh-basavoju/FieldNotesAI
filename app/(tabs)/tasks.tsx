@@ -17,6 +17,7 @@ import { useAppStore } from "@/lib/store";
 import { TaskCard } from "@/components/TaskCard";
 import { EmptyState } from "@/components/EmptyState";
 import type { TaskStatus } from "@/lib/types";
+import { useIsAuthenticated, showSignInRequired } from "@/lib/auth-guard";
 
 type FilterType = "all" | TaskStatus | "today";
 
@@ -31,10 +32,12 @@ const FILTERS: { key: FilterType; label: string; icon: keyof typeof Ionicons.gly
 
 export default function TasksScreen() {
   const insets = useSafeAreaInsets();
-  const tasks = useAppStore((s) => s.tasks);
+  const rawTasks = useAppStore((s) => s.tasks);
   const evidenceLinks = useAppStore((s) => s.evidenceLinks);
   const projects = useAppStore((s) => s.projects);
   const updateTask = useAppStore((s) => s.updateTask);
+  const isAuthenticated = useIsAuthenticated();
+  const tasks = isAuthenticated ? rawTasks : [];
   const [filter, setFilter] = useState<FilterType>("all");
 
   const webTopInset = Platform.OS === "web" ? 67 : 0;
@@ -123,7 +126,10 @@ export default function TasksScreen() {
             <Text style={styles.projectLabel}>{getProjectName(item.projectId)}</Text>
             <TaskCard
               task={item}
-              onPress={() => router.push({ pathname: "/task/[id]", params: { id: item.id } })}
+              onPress={() => {
+                if (!isAuthenticated) { showSignInRequired(); return; }
+                router.push({ pathname: "/task/[id]", params: { id: item.id } });
+              }}
               onStatusToggle={() => cycleStatus(item)}
               evidenceCount={evidenceLinks.filter((l) => l.taskId === item.id).length}
             />
@@ -132,8 +138,8 @@ export default function TasksScreen() {
         ListEmptyComponent={
           <EmptyState
             icon="checkbox-outline"
-            title="No tasks yet"
-            subtitle="Tasks will appear here when you capture field data and process it through AI"
+            title={isAuthenticated ? "No tasks yet" : "Sign in to view tasks"}
+            subtitle={isAuthenticated ? "Tasks will appear here when you capture field data and process it through AI" : "Sign in to see your tasks and field data"}
           />
         }
       />

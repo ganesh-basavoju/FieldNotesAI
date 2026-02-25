@@ -67,6 +67,8 @@ export interface Project {
   mediaCount: number;
   taskCount: number;
   openTaskCount: number;
+  syncStatus?: 'local' | 'pending_sync' | 'synced';
+  serverId?: string;
 }
 
 export interface Area {

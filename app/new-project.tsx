@@ -23,6 +23,7 @@ import { useAppStore } from "@/lib/store";
 import { SessionStorage } from "@/lib/storage";
 import { uploadAudioFile, uploadTranscriptFile } from "@/lib/uploader";
 import type { CaptureMode, ConsentMethod, Participant } from "@/lib/types";
+import { isOnline as checkOnline } from "@/lib/offline-sync";
 
 const MODES: { value: CaptureMode; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
   { value: "photo_speak", label: "Photo + Voice Note", icon: "camera-outline" },
@@ -157,6 +158,8 @@ export default function NewProjectScreen() {
     try {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
+      const online = await checkOnline();
+
       const project = await addProject({
         name: name.trim(),
         jobId: jobId.trim(),
@@ -164,6 +167,7 @@ export default function NewProjectScreen() {
         scopes: selectedScopes,
         participants: validParticipants,
         consentMethod,
+        isOnline: online,
       });
 
       const projectAreas = useAppStore.getState().areas.filter((a) => a.projectId === project.id);

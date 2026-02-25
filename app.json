@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "FieldCapture Pro",
-    "slug": "fieldcapture-pro",
+    "slug": "fieldcapture-pro-v2",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -47,7 +47,7 @@
       [
         "expo-router",
         {
-          "origin": "https://replit.com/"
+          "origin": "https://field-notes-ai.vercel.app"
         }
       ],
       "expo-font",
@@ -73,10 +73,10 @@
     },
     "extra": {
       "router": {
-        "origin": "https://replit.com/"
+        "origin": "https://field-notes-ai.vercel.app"
       },
       "eas": {
-        "projectId": "cb7572a2-b0cc-442e-8573-528d7cb3ce84"
+        "projectId": "63a393b8-860e-45a3-8a41-9a31ebd3c566"
       }
     }
   }

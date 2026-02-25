@@ -16,6 +16,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import Colors from "@/constants/colors";
 import { useAppStore } from "@/lib/store";
 import { ProjectCard } from "@/components/ProjectCard";
+import { useIsAuthenticated, showSignInRequired } from "@/lib/auth-guard";
 
 export default function DashboardScreen() {
   const insets = useSafeAreaInsets();
@@ -24,6 +25,7 @@ export default function DashboardScreen() {
   const tasks = useAppStore((s) => s.tasks);
   const loadAll = useAppStore((s) => s.loadAll);
   const [refreshing, setRefreshing] = useState(false);
+  const isAuthenticated = useIsAuthenticated();
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -31,17 +33,17 @@ export default function DashboardScreen() {
     setRefreshing(false);
   }, [loadAll]);
 
-  // Dashboard stats
-  const totalProjects = projects.length;
-  const completedProjects = projects.filter((p) => p.webhookStatus === "received").length;
-  const failedProjects = projects.filter((p) => p.webhookStatus === "failed").length;
-  const totalTasks = tasks.length;
-  const processingProjects = projects.filter(
+  // Dashboard stats — show 0 for unauthenticated users
+  const totalProjects = isAuthenticated ? projects.length : 0;
+  const completedProjects = isAuthenticated ? projects.filter((p) => p.webhookStatus === "received").length : 0;
+  const failedProjects = isAuthenticated ? projects.filter((p) => p.webhookStatus === "failed").length : 0;
+  const totalTasks = isAuthenticated ? tasks.length : 0;
+  const processingProjects = isAuthenticated ? projects.filter(
     (p) => p.webhookStatus === "pending" || p.webhookStatus === "sent"
-  ).length;
+  ).length : 0;
 
-  // Recent projects (last 5)
-  const recentProjects = projects.slice(0, 5);
+  // Recent projects (last 5) — empty for unauthenticated
+  const recentProjects = isAuthenticated ? projects.slice(0, 5) : [];
 
   const webTopInset = Platform.OS === "web" ? 67 : 0;
 
@@ -87,6 +89,7 @@ export default function DashboardScreen() {
               <Pressable
                 onPress={() => {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                  if (!isAuthenticated) { showSignInRequired(); return; }
                   router.push("/new-project");
                 }}
                 style={({ pressed }) => [styles.addButton, pressed && styles.addButtonPressed]}
@@ -118,6 +121,7 @@ export default function DashboardScreen() {
             <Pressable
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                if (!isAuthenticated) { showSignInRequired(); return; }
                 router.push("/new-project");
               }}
               style={({ pressed }) => [pressed && styles.createBtnPressed]}

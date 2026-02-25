@@ -20,6 +20,7 @@ import Colors from "@/constants/colors";
 import { useAppStore } from "@/lib/store";
 import { sendAIQuery, type AIChatMessage, type AIChatMode, type AISource } from "@/lib/ai-service";
 import { generateId } from "@/lib/generate-id";
+import { useIsAuthenticated, showSignInRequired } from "@/lib/auth-guard";
 
 export default function AIChatScreen() {
   const insets = useSafeAreaInsets();
@@ -28,6 +29,7 @@ export default function AIChatScreen() {
 
   const projects = useAppStore((s) => s.projects);
   const currentUser = useAppStore((s) => s.currentUser);
+  const isAuthenticated = useIsAuthenticated();
 
   const [mode, setMode] = useState<AIChatMode>("portfolio");
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
@@ -60,6 +62,10 @@ export default function AIChatScreen() {
   );
 
   const handleSend = useCallback(async () => {
+    if (!isAuthenticated) {
+      showSignInRequired('Please sign in to use AI chat.');
+      return;
+    }
     const text = inputText.trim();
     if (!text || loading) return;
 
@@ -109,7 +115,7 @@ export default function AIChatScreen() {
       setLoading(false);
       setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 200);
     }
-  }, [inputText, loading, mode, selectedJobId, messages]);
+  }, [inputText, loading, mode, selectedJobId, messages, isAuthenticated]);
 
   const handleModeSwitch = (newMode: AIChatMode) => {
     if (newMode === mode) return;
@@ -219,13 +225,15 @@ export default function AIChatScreen() {
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <View style={styles.emptyIconBg}>
-              <Ionicons name="sparkles" size={32} color={Colors.dark.accentSoft} />
+              <Ionicons name={isAuthenticated ? "sparkles" : "lock-closed"} size={32} color={Colors.dark.accentSoft} />
             </View>
             <Text style={styles.emptyTitle}>
-              {mode === "job" ? "Job-Level AI" : "Portfolio AI"}
+              {!isAuthenticated ? "Sign In Required" : mode === "job" ? "Job-Level AI" : "Portfolio AI"}
             </Text>
             <Text style={styles.emptySubtitle}>
-              {mode === "job"
+              {!isAuthenticated
+                ? 'Please sign in to use the AI Assistant.'
+                : mode === "job"
                 ? 'Ask about a specific job:\n"What action items are unresolved?"\n"When did we approve the flooring change?"'
                 : 'Ask across all jobs:\n"Which jobs have overdue action items?"\n"Where are scope changes increasing?"'}
             </Text>
@@ -262,7 +270,7 @@ export default function AIChatScreen() {
             maxLength={2000}
             onSubmitEditing={handleSend}
             returnKeyType="send"
-            editable={!loading}
+            editable={!loading && isAuthenticated}
           />
           <Pressable
             onPress={handleSend}

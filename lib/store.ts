@@ -68,6 +68,7 @@ interface AppState {
     scopes: string[];
     participants: Participant[];
     consentMethod: ConsentMethod;
+    isOnline?: boolean;
   }) => Promise<Project>;
   updateProject: (id: string, updates: Partial<Project>) => Promise<void>;
   deleteProject: (id: string) => Promise<void>;
@@ -181,7 +182,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   setCurrentProject: (id) => set({ currentProjectId: id }),
   setCurrentArea: (id) => set({ currentAreaId: id }),
 
-  addProject: async ({ name, jobId, mode, scopes, participants, consentMethod }) => {
+  addProject: async ({ name, jobId, mode, scopes, participants, consentMethod, isOnline: online }) => {
     const now = Date.now();
     const project: Project = {
       id: generateId(),
@@ -198,7 +199,10 @@ export const useAppStore = create<AppState>((set, get) => ({
       mediaCount: 0,
       taskCount: 0,
       openTaskCount: 0,
+      syncStatus: 'local',
     };
+
+    // Save locally first (always works, even offline)
     await ProjectStorage.add(project);
     set((s) => ({ projects: [project, ...s.projects] }));
 
@@ -216,6 +220,56 @@ export const useAppStore = create<AppState>((set, get) => ({
     const area: Area = { id: generateId(), projectId: project.id, type: areaType, label: scopes[0] || 'General', createdAt: now };
     await AreaStorage.add(area);
     set((s) => ({ areas: [...s.areas, area] }));
+
+    // If online and authenticated, sync to backend immediately
+    const token = get().authToken;
+    if (online && token) {
+      try {
+        const { apiRequest } = await import('./query-client');
+        const res = await apiRequest('POST', '/api/projects', {
+          name, jobId, mode, scopes, participants, consentMethod,
+        });
+        if (res.ok) {
+          const data = await res.json();
+          const serverId = data.project?._id || data.project?.id;
+          project.syncStatus = 'synced';
+          project.serverId = serverId;
+          await ProjectStorage.update(project.id, { syncStatus: 'synced', serverId });
+          set((s) => ({
+            projects: s.projects.map((p) =>
+              p.id === project.id ? { ...p, syncStatus: 'synced', serverId } : p
+            ),
+          }));
+        } else {
+          // Backend failed — mark for later sync
+          project.syncStatus = 'pending_sync';
+          await ProjectStorage.update(project.id, { syncStatus: 'pending_sync' });
+          set((s) => ({
+            projects: s.projects.map((p) =>
+              p.id === project.id ? { ...p, syncStatus: 'pending_sync' } : p
+            ),
+          }));
+        }
+      } catch {
+        // Network error — mark for later sync
+        project.syncStatus = 'pending_sync';
+        await ProjectStorage.update(project.id, { syncStatus: 'pending_sync' });
+        set((s) => ({
+          projects: s.projects.map((p) =>
+            p.id === project.id ? { ...p, syncStatus: 'pending_sync' } : p
+          ),
+        }));
+      }
+    } else if (token) {
+      // Authenticated but offline — queue for sync
+      project.syncStatus = 'pending_sync';
+      await ProjectStorage.update(project.id, { syncStatus: 'pending_sync' });
+      set((s) => ({
+        projects: s.projects.map((p) =>
+          p.id === project.id ? { ...p, syncStatus: 'pending_sync' } : p
+        ),
+      }));
+    }
 
     return project;
   },

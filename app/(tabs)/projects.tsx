@@ -17,12 +17,15 @@ import Colors from "@/constants/colors";
 import { useAppStore } from "@/lib/store";
 import { ProjectCard } from "@/components/ProjectCard";
 import { EmptyState } from "@/components/EmptyState";
+import { useIsAuthenticated, showSignInRequired } from "@/lib/auth-guard";
 
 export default function ProjectsScreen() {
   const insets = useSafeAreaInsets();
-  const projects = useAppStore((s) => s.projects);
+  const rawProjects = useAppStore((s) => s.projects);
   const loadAll = useAppStore((s) => s.loadAll);
   const [refreshing, setRefreshing] = useState(false);
+  const isAuthenticated = useIsAuthenticated();
+  const projects = isAuthenticated ? rawProjects : [];
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -63,6 +66,7 @@ export default function ProjectsScreen() {
               <Pressable
                 onPress={() => {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                  if (!isAuthenticated) { showSignInRequired(); return; }
                   router.push("/new-project");
                 }}
                 style={({ pressed }) => [styles.addButton, pressed && styles.addButtonPressed]}
@@ -85,6 +89,7 @@ export default function ProjectsScreen() {
             <ProjectCard
               project={item}
               onPress={() => {
+                if (!isAuthenticated) { showSignInRequired(); return; }
                 useAppStore.getState().setCurrentProject(item.id);
                 router.push({ pathname: "/project/[id]", params: { id: item.id } });
               }}
@@ -94,10 +99,10 @@ export default function ProjectsScreen() {
         ListEmptyComponent={
           <EmptyState
             icon="business-outline"
-            title="No projects yet"
-            subtitle="Create your first project to start capturing field data"
-            actionLabel="New Project"
-            onAction={() => router.push("/new-project")}
+            title={isAuthenticated ? "No projects yet" : "Sign in to view projects"}
+            subtitle={isAuthenticated ? "Create your first project to start capturing field data" : "Sign in to create and manage your field projects"}
+            actionLabel={isAuthenticated ? "New Project" : "Sign In"}
+            onAction={() => isAuthenticated ? router.push("/new-project") : showSignInRequired()}
           />
         }
       />
