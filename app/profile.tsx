@@ -64,14 +64,29 @@ export default function ProfileScreen() {
           <View style={styles.avatarLarge}>
             <Text style={styles.avatarLargeText}>{initial}</Text>
           </View>
+          <Text style={styles.nameText}>{currentUser.name || "Unknown"}</Text>
+          {currentUser.role ? (
+            <View style={styles.roleBadge}>
+              <Text style={styles.roleBadgeText}>
+                {currentUser.role === 'company_admin' ? 'Company Admin' : currentUser.role === 'superadmin' ? 'Super Admin' : currentUser.role.charAt(0).toUpperCase() + currentUser.role.slice(1)}
+              </Text>
+            </View>
+          ) : null}
         </View>
 
         <View style={styles.infoSection}>
-          <InfoRow icon="person-outline" label="Name" value={currentUser.name} />
+          <InfoRow icon="person-outline" label="Name" value={currentUser.name || "Not available"} />
           <View style={styles.divider} />
-          <InfoRow icon="business-outline" label="Company" value={currentUser.company || "Not specified"} />
+          <InfoRow icon="mail-outline" label="Email" value={currentUser.email || "Not available"} />
           <View style={styles.divider} />
-          <InfoRow icon="mail-outline" label="Email" value={currentUser.email} />
+          <InfoRow icon="shield-checkmark-outline" label="Role" value={
+            currentUser.role === 'company_admin' ? 'Company Admin'
+              : currentUser.role === 'superadmin' ? 'Super Admin'
+                : currentUser.role ? currentUser.role.charAt(0).toUpperCase() + currentUser.role.slice(1)
+                  : 'Team Member'
+          } />
+          <View style={styles.divider} />
+          <InfoRow icon="business-outline" label="Company" value={currentUser.companyName || currentUser.companyId || "Not assigned"} />
         </View>
       </ScrollView>
     </View>
@@ -139,6 +154,27 @@ const styles = StyleSheet.create({
     fontSize: 40,
     fontFamily: "Inter_700Bold",
     color: "#FFF",
+  },
+  nameText: {
+    fontSize: 22,
+    fontFamily: "Inter_700Bold",
+    color: Colors.dark.text,
+    marginTop: 16,
+  },
+  roleBadge: {
+    backgroundColor: Colors.dark.accent + "20",
+    borderWidth: 1,
+    borderColor: Colors.dark.accent + "40",
+    borderRadius: 20,
+    paddingHorizontal: 14,
+    paddingVertical: 4,
+    marginTop: 8,
+  },
+  roleBadgeText: {
+    fontSize: 12,
+    fontFamily: "Inter_600SemiBold",
+    color: Colors.dark.accentLight,
+    textTransform: "capitalize" as const,
   },
   infoSection: {
     backgroundColor: Colors.dark.card,

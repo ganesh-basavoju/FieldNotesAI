@@ -31,7 +31,7 @@ export interface AuthUser {
   role?: string;
   avatar?: string;
   companyId?: string;
-  company?: string;
+  companyName?: string;
 }
 
 export interface Participant {

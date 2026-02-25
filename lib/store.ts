@@ -57,6 +57,7 @@ interface AppState {
   setAuth: (token: string | null, user: AuthUser | null) => void;
 
   loadAll: () => Promise<void>;
+  fetchFromServer: () => Promise<void>;
 
   setCurrentProject: (id: string | null) => void;
   setCurrentArea: (id: string | null) => void;
@@ -177,6 +178,70 @@ export const useAppStore = create<AppState>((set, get) => ({
       currentUser: savedAuth?.user || null,
       isLoading: false,
     });
+
+    // After loading local data, fetch from server if authenticated
+    if (savedAuth?.token) {
+      get().fetchFromServer().catch(() => { });
+    }
+  },
+
+  fetchFromServer: async () => {
+    const token = get().authToken;
+    if (!token) return;
+
+    try {
+      const { apiRequest } = await import('./query-client');
+      const res = await apiRequest('GET', '/api/fieldnotesai/projects');
+      if (!res.ok) return;
+
+      const data = await res.json();
+      const serverProjects = data.projects || [];
+      if (serverProjects.length === 0) return;
+
+      const localProjects = get().projects;
+      const localIds = new Set(localProjects.map(p => p.serverId).filter(Boolean));
+      const localClientIds = new Set(localProjects.map(p => p.id));
+
+      let newProjects: Project[] = [];
+      for (const sp of serverProjects) {
+        // Skip if we already have this server project locally
+        if (localIds.has(sp._id) || localIds.has(sp.id)) continue;
+
+        // Convert server project to local format
+        const localProject: Project = {
+          id: sp._id || sp.id,
+          serverId: sp._id || sp.id,
+          name: sp.name || 'Unnamed Project',
+          jobId: sp.jobId || '',
+          mode: sp.mode || 'photo_video',
+          scopes: sp.scopes || [],
+          participants: sp.participants || [],
+          consentMethod: sp.consentMethod || 'verbal',
+          consentGiven: sp.consentGiven ?? true,
+          webhookStatus: sp.webhookStatus || 'pending',
+          createdAt: new Date(sp.createdAt).getTime(),
+          updatedAt: new Date(sp.updatedAt || sp.createdAt).getTime(),
+          mediaCount: sp.mediaCount || 0,
+          taskCount: sp.taskCount || 0,
+          openTaskCount: sp.openTaskCount || 0,
+          syncStatus: 'synced',
+        };
+
+        // Don't add if a local project with same ID exists
+        if (!localClientIds.has(localProject.id)) {
+          newProjects.push(localProject);
+          await ProjectStorage.add(localProject);
+        }
+      }
+
+      if (newProjects.length > 0) {
+        set((s) => ({
+          projects: [...newProjects, ...s.projects].sort((a, b) => b.updatedAt - a.updatedAt),
+        }));
+      }
+    } catch (err) {
+      console.warn('[Store] fetchFromServer failed:', err);
+    }
   },
 
   setCurrentProject: (id) => set({ currentProjectId: id }),
@@ -392,6 +457,26 @@ export const useAppStore = create<AppState>((set, get) => ({
     };
     await SessionStorage.add(session);
     set((s) => ({ sessions: [...s.sessions, session] }));
+
+    // Sync session to server
+    const token = get().authToken;
+    if (token) {
+      try {
+        const { apiRequest } = await import('./query-client');
+        const project = get().projects.find((p) => p.id === projectId);
+        const serverProjectId = project?.serverId || projectId;
+        await apiRequest('POST', '/api/fieldnotesai/sessions', {
+          projectId: serverProjectId,
+          areaType,
+          mode,
+          sessionType,
+          meetingMetadata,
+        });
+      } catch (err) {
+        console.warn('[Store] Session sync to server failed:', err);
+      }
+    }
+
     return session;
   },
 
