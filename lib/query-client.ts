@@ -3,6 +3,7 @@ import { QueryClient, QueryFunction } from "@tanstack/react-query";
 
 import Constants from "expo-constants";
 import { Platform } from "react-native";
+import { AuthStorage } from "./storage";
 
 /**
  * Gets the base URL for the Express API server (e.g., "http://localhost:3000")
@@ -34,8 +35,8 @@ export function getApiUrl(): string {
     return "http://localhost:5000";
   }
 
-  // Default to the deployed Vercel backend for production/preview builds
-  return "https://field-notes-ai.vercel.app";
+  // Default to the deployed BigLogic backend for production/preview builds
+  return "https://biglogicai-server.onrender.com";
 }
 
 async function throwIfResNotOk(res: Response) {
@@ -53,14 +54,23 @@ export async function apiRequest(
   const baseUrl = getApiUrl();
   const url = new URL(route, baseUrl);
 
+  // Build headers with optional Bearer token for BigLogic auth
+  const headers: Record<string, string> = {};
+  if (data) headers["Content-Type"] = "application/json";
+
+  try {
+    const savedAuth = await AuthStorage.get();
+    if (savedAuth?.token) {
+      headers["Authorization"] = `Bearer ${savedAuth.token}`;
+    }
+  } catch { }
+
   const res = await fetch(url.toString(), {
     method,
-    headers: data ? { "Content-Type": "application/json" } : {},
+    headers,
     body: data ? JSON.stringify(data) : undefined,
-    credentials: "include",
   });
 
-  await throwIfResNotOk(res);
   return res;
 }
 
@@ -73,8 +83,16 @@ export const getQueryFn: <T>(options: {
       const baseUrl = getApiUrl();
       const url = new URL(queryKey.join("/") as string, baseUrl);
 
+      const headers: Record<string, string> = {};
+      try {
+        const savedAuth = await AuthStorage.get();
+        if (savedAuth?.token) {
+          headers["Authorization"] = `Bearer ${savedAuth.token}`;
+        }
+      } catch { }
+
       const res = await fetch(url.toString(), {
-        credentials: "include",
+        headers,
       });
 
       if (unauthorizedBehavior === "returnNull" && res.status === 401) {

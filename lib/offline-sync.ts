@@ -65,7 +65,7 @@ export async function syncPendingProjects(): Promise<number> {
 
     for (const project of pendingProjects) {
         try {
-            const res = await apiRequest('POST', '/api/projects', {
+            const res = await apiRequest('POST', '/api/fieldnotesai/projects', {
                 name: project.name,
                 jobId: project.jobId,
                 mode: project.mode,
@@ -125,7 +125,7 @@ export async function syncPendingSessions(): Promise<number> {
 
     for (const session of pendingSessions) {
         try {
-            const res = await apiRequest('POST', '/api/sessions', {
+            const res = await apiRequest('POST', '/api/fieldnotesai/sessions', {
                 projectId: session.projectId,
                 areaId: session.areaId,
                 areaType: session.areaType,

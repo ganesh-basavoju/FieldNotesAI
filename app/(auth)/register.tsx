@@ -50,7 +50,9 @@ export default function RegisterScreen() {
         password,
       });
       const data = await res.json();
-      store.login(data.token, data.user);
+      // BigLogic returns flat response: { _id, name, email, role, avatar, token }
+      const user = { id: data._id, name: data.name, email: data.email, role: data.role, avatar: data.avatar };
+      store.login(data.token, user);
       router.replace("/(tabs)");
     } catch (err: any) {
       setError(err.message || "Registration failed. Please try again.");

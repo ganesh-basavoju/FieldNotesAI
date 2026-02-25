@@ -226,7 +226,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     if (online && token) {
       try {
         const { apiRequest } = await import('./query-client');
-        const res = await apiRequest('POST', '/api/projects', {
+        const res = await apiRequest('POST', '/api/fieldnotesai/projects', {
           name, jobId, mode, scopes, participants, consentMethod,
         });
         if (res.ok) {

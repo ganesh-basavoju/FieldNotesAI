@@ -41,7 +41,9 @@ export default function LoginScreen() {
     try {
       const res = await apiRequest("POST", "/api/auth/login", { email: email.trim(), password });
       const data = await res.json();
-      store.login(data.token, data.user);
+      // BigLogic returns flat response: { _id, name, email, role, avatar, permissions, companyId, token }
+      const user = { id: data._id, name: data.name, email: data.email, role: data.role, avatar: data.avatar, companyId: data.companyId };
+      store.login(data.token, user);
       router.replace("/(tabs)");
     } catch (err: any) {
       setError(err.message || "Login failed. Please try again.");
