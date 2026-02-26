@@ -230,6 +230,7 @@ export async function uploadTranscriptFile(
     const project = store.projects.find((p) => p.id === session.projectId);
 
     try {
+        // Mark as sent locally
         await SessionStorage.update(sessionId, { webhookStatus: "sent" });
         if (session.projectId) {
             await store.updateProject(session.projectId, { webhookStatus: "sent" });
@@ -251,6 +252,7 @@ export async function uploadTranscriptFile(
             },
         };
 
+        // Send file to n8n transcript webhook
         const result = await uploadWithRetry(
             settings.transcriptWebhookUrl,
             fileUri,
@@ -259,17 +261,20 @@ export async function uploadTranscriptFile(
         );
 
         if (result.status >= 200 && result.status < 300) {
+            // Parse and unwrap n8n response (n8n wraps in array)
             let body: any;
             try {
-                body = JSON.parse(result.body);
+                const parsed = JSON.parse(result.body);
+                body = Array.isArray(parsed) ? parsed[0] : parsed;
             } catch {
                 body = {};
             }
+
+            console.log(`Transcript: n8n result received, keys: ${Object.keys(body || {}).join(', ')}`);
+
+            // Build local webhookResult and update local store immediately
             const webhookResult = processWebhookResponse(body);
-            await SessionStorage.update(sessionId, {
-                webhookStatus: "received",
-                webhookResult,
-            });
+            await SessionStorage.update(sessionId, { webhookStatus: "received", webhookResult });
             store.sessions = store.sessions.map((s) =>
                 s.id === sessionId ? { ...s, webhookStatus: "received", webhookResult } : s
             );
@@ -277,7 +282,36 @@ export async function uploadTranscriptFile(
                 await store.updateProject(session.projectId, { webhookStatus: "received" });
             }
 
-            // Extract tasks from webhook result and add to store
+            // ─── Forward to BigLogic server (authenticated endpoint) ───────────
+            // Uses POST /sessions/:id/store-result — same as how other modes use
+            // sync-service.ts processWebhookResult() to forward to BigLogic.
+            // The server session ID (serverId / MongoDB _id) goes in the URL.
+            try {
+                const { apiRequest } = await import('./query-client');
+                // Re-read fresh store to get serverId that was set by startSession
+                const freshStore = useAppStore.getState();
+                const freshSession = freshStore.sessions.find((s) => s.id === sessionId);
+                const serverSessionId = freshSession?.serverId || sessionId;
+
+                console.log(`Transcript: posting to /sessions/${serverSessionId}/store-result`);
+
+                const fwdRes = await apiRequest(
+                    'POST',
+                    `/api/fieldnotesai/sessions/${serverSessionId}/store-result`,
+                    body  // already unwrapped; server's processN8nPayload handles parsing
+                );
+
+                if (fwdRes.ok) {
+                    console.log('Transcript: BigLogic server stored result successfully');
+                } else {
+                    const errText = await fwdRes.text().catch(() => '');
+                    console.warn(`Transcript: /store-result returned ${fwdRes.status}: ${errText.substring(0, 300)}`);
+                }
+            } catch (fwdErr: any) {
+                console.warn('Transcript: failed to forward to BigLogic server:', fwdErr?.message || fwdErr);
+            }
+
+            // ─── Extract tasks locally (device A sees them immediately) ────────
             if (webhookResult.tasks && Array.isArray(webhookResult.tasks)) {
                 for (const task of webhookResult.tasks) {
                     try {
@@ -303,10 +337,13 @@ export async function uploadTranscriptFile(
 
             useAppStore.setState({ sessions: [...store.sessions] });
             return true;
+
         } else {
+            // n8n returned non-2xx
             await markFailed(sessionId, session.projectId);
             return false;
         }
+
     } catch (err) {
         console.warn("Upload transcript failed:", err);
         await markFailed(sessionId, session.projectId);

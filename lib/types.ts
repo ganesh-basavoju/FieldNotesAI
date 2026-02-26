@@ -181,6 +181,7 @@ export interface CaptureSession {
   editedSummary?: string;
   summaryVersions?: NoteVersion[];
   uploadedFileUri?: string;
+  serverId?: string; // MongoDB _id from BigLogic server
 }
 
 export interface WebhookIssue {

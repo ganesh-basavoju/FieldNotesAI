@@ -324,8 +324,29 @@ async function processWebhookResult(sessionId: string, rawResult: any): Promise<
   if (result.changeOrderCandidates) webhookResult.changeOrderCandidates = result.changeOrderCandidates;
   if (result.dailyLog) webhookResult.dailyLog = result.dailyLog;
   if (result.audit) webhookResult.audit = result.audit;
+  if (result.qualityScoring) webhookResult.qualityScoring = result.qualityScoring;
 
   await SessionStorage.update(sessionId, { webhookResult });
+
+  // ─── Forward to BigLogic server so it stores everything in MongoDB ───
+  try {
+    const { apiRequest } = await import("./query-client");
+    const token = store.authToken;
+    if (token) {
+      const project = store.projects.find((p) => p.id === session.projectId);
+      const serverSessionId = session.serverId || sessionId;
+      const serverProjectId = project?.serverId || session.projectId;
+
+      await apiRequest("POST", "/api/fieldnotesai/webhook/n8n-callback", {
+        sessionId: serverSessionId,
+        projectId: serverProjectId,
+        ...result,
+      });
+      console.warn("Sync: forwarded n8n result to BigLogic server");
+    }
+  } catch (fwdErr: any) {
+    console.warn("Sync: failed to forward to server:", fwdErr?.message || fwdErr);
+  }
 }
 
 function parseTimeToMs(time: string | undefined): number {

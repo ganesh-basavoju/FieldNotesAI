@@ -199,46 +199,186 @@ export const useAppStore = create<AppState>((set, get) => ({
       if (serverProjects.length === 0) return;
 
       const localProjects = get().projects;
-      const localIds = new Set(localProjects.map(p => p.serverId).filter(Boolean));
+      const localSessions = get().sessions;
+      const localTasks = get().tasks;
+      const localServerIds = new Set(localProjects.map(p => p.serverId).filter(Boolean));
       const localClientIds = new Set(localProjects.map(p => p.id));
+      const localTaskIds = new Set(localTasks.map(t => t.id));
 
       let newProjects: Project[] = [];
+      let newSessions: CaptureSession[] = [];
+      let newTasks: TaskItem[] = [];
+      let updatedProjectIds: string[] = [];
+
       for (const sp of serverProjects) {
-        // Skip if we already have this server project locally
-        if (localIds.has(sp._id) || localIds.has(sp.id)) continue;
+        const spId = sp._id || sp.id;
 
-        // Convert server project to local format
-        const localProject: Project = {
-          id: sp._id || sp.id,
-          serverId: sp._id || sp.id,
-          name: sp.name || 'Unnamed Project',
-          jobId: sp.jobId || '',
-          mode: sp.mode || 'photo_video',
-          scopes: sp.scopes || [],
-          participants: sp.participants || [],
-          consentMethod: sp.consentMethod || 'verbal',
-          consentGiven: sp.consentGiven ?? true,
-          webhookStatus: sp.webhookStatus || 'pending',
-          createdAt: new Date(sp.createdAt).getTime(),
-          updatedAt: new Date(sp.updatedAt || sp.createdAt).getTime(),
-          mediaCount: sp.mediaCount || 0,
-          taskCount: sp.taskCount || 0,
-          openTaskCount: sp.openTaskCount || 0,
-          syncStatus: 'synced',
-        };
+        // ─── Find or create local project ───────────────────────
+        let localProject = localProjects.find(p => p.serverId === spId || p.id === spId);
 
-        // Don't add if a local project with same ID exists
-        if (!localClientIds.has(localProject.id)) {
+        if (localProject) {
+          // Update existing local project with latest server data
+          const updates: Partial<Project> = {
+            webhookStatus: sp.webhookStatus || localProject.webhookStatus,
+            taskCount: sp.taskCount ?? localProject.taskCount,
+            openTaskCount: sp.openTaskCount ?? localProject.openTaskCount,
+          };
+          await ProjectStorage.update(localProject.id, updates);
+          updatedProjectIds.push(localProject.id);
+        } else if (!localClientIds.has(spId)) {
+          // New project from server
+          localProject = {
+            id: spId,
+            serverId: spId,
+            name: sp.name || 'Unnamed Project',
+            jobId: sp.jobId || '',
+            mode: sp.mode || 'photo_video',
+            scopes: sp.scopes || [],
+            participants: sp.participants || [],
+            consentMethod: sp.consentMethod || 'verbal',
+            consentGiven: sp.consentGiven ?? true,
+            webhookStatus: sp.webhookStatus || 'pending',
+            createdAt: new Date(sp.createdAt).getTime(),
+            updatedAt: new Date(sp.updatedAt || sp.createdAt).getTime(),
+            mediaCount: sp.mediaCount || 0,
+            taskCount: sp.taskCount || 0,
+            openTaskCount: sp.openTaskCount || 0,
+            syncStatus: 'synced',
+          };
           newProjects.push(localProject);
           await ProjectStorage.add(localProject);
         }
+
+        if (!localProject) continue;
+        const projectId = localProject.id;
+
+        // ─── Hydrate session from latestSession ──────────────────
+        if (sp.latestSession) {
+          const serverSession = sp.latestSession;
+          const serverSessionId = serverSession._id?.toString();
+          const clientSessionId = serverSession.metadata?.clientSessionId;
+
+          // Find existing local session
+          let existingSession = localSessions.find(s =>
+            s.serverId === serverSessionId ||
+            (clientSessionId && s.id === clientSessionId)
+          );
+
+          if (existingSession) {
+            // Update existing session with server's processed data
+            const sessionUpdates: Partial<CaptureSession> = {
+              webhookStatus: serverSession.webhookStatus || existingSession.webhookStatus,
+              webhookResult: serverSession.webhookResult || existingSession.webhookResult,
+              serverId: serverSessionId || existingSession.serverId,
+            };
+            await SessionStorage.update(existingSession.id, sessionUpdates);
+          } else {
+            // Create new local session from server data
+            const newSession: CaptureSession = {
+              id: clientSessionId || serverSessionId || `server_${Date.now()}`,
+              serverId: serverSessionId,
+              projectId,
+              areaId: '',
+              areaType: (serverSession.areaType as AreaType) || 'general',
+              mode: (serverSession.mode as CaptureMode) || 'voice_only',
+              sessionType: 'walkthrough',
+              startedAt: new Date(serverSession.startedAt).getTime(),
+              endedAt: serverSession.endedAt ? new Date(serverSession.endedAt).getTime() : undefined,
+              mediaIds: [],
+              audioIds: [],
+              webhookStatus: serverSession.webhookStatus || 'pending',
+              webhookResult: serverSession.webhookResult || undefined,
+            };
+            newSessions.push(newSession);
+            await SessionStorage.add(newSession);
+          }
+        }
+
+        // ─── Hydrate tasks from server ───────────────────────────
+        if (sp.tasks && Array.isArray(sp.tasks)) {
+          for (const serverTask of sp.tasks) {
+            const taskId = serverTask._id?.toString() || serverTask.id;
+            if (localTaskIds.has(taskId)) continue;
+            localTaskIds.add(taskId);
+
+            const newTask: TaskItem = {
+              id: taskId,
+              projectId,
+              areaId: serverTask.areaId || undefined,
+              areaType: serverTask.areaType || undefined,
+              title: serverTask.title || 'Untitled Task',
+              description: serverTask.description || '',
+              status: serverTask.status || 'open',
+              priority: serverTask.priority || 'medium',
+              dueDate: serverTask.dueDate ? new Date(serverTask.dueDate).getTime() : undefined,
+              tags: serverTask.tags || [],
+              createdAt: new Date(serverTask.createdAt || Date.now()).getTime(),
+              updatedAt: new Date(serverTask.updatedAt || Date.now()).getTime(),
+              createdBy: serverTask.createdBy || 'system',
+              confidence: serverTask.confidence,
+              suggestedAssignee: serverTask.suggestedAssignee,
+            };
+            newTasks.push(newTask);
+            await TaskStorage.add(newTask);
+          }
+        }
       }
 
-      if (newProjects.length > 0) {
-        set((s) => ({
-          projects: [...newProjects, ...s.projects].sort((a, b) => b.updatedAt - a.updatedAt),
-        }));
-      }
+      // ─── Batch update store ────────────────────────────────────
+      set((s) => {
+        let projects = [...s.projects];
+
+        // Update existing projects with server data
+        if (updatedProjectIds.length > 0) {
+          const serverMap = new Map(serverProjects.map((sp: any) => [sp._id || sp.id, sp]));
+          projects = projects.map((p) => {
+            const sp: any = serverMap.get(p.serverId) || serverMap.get(p.id);
+            if (sp && updatedProjectIds.includes(p.id)) {
+              return {
+                ...p,
+                webhookStatus: sp.webhookStatus || p.webhookStatus,
+                taskCount: sp.taskCount ?? p.taskCount,
+                openTaskCount: sp.openTaskCount ?? p.openTaskCount,
+              };
+            }
+            return p;
+          });
+        }
+
+        // Add new projects
+        if (newProjects.length > 0) {
+          projects = [...newProjects, ...projects];
+        }
+
+        // Update sessions — merge new + update existing
+        let sessions = [...s.sessions];
+        if (newSessions.length > 0) {
+          sessions = [...newSessions, ...sessions];
+        }
+        // Update existing sessions with server webhook results
+        for (const sp of serverProjects) {
+          if (!sp.latestSession?.webhookResult) continue;
+          const serverSessionId = sp.latestSession._id?.toString();
+          const clientSessionId = sp.latestSession.metadata?.clientSessionId;
+          sessions = sessions.map((sess) => {
+            if (sess.serverId === serverSessionId || (clientSessionId && sess.id === clientSessionId)) {
+              return {
+                ...sess,
+                webhookStatus: sp.latestSession.webhookStatus || sess.webhookStatus,
+                webhookResult: sp.latestSession.webhookResult || sess.webhookResult,
+                serverId: serverSessionId || sess.serverId,
+              };
+            }
+            return sess;
+          });
+        }
+
+        return {
+          projects: projects.sort((a, b) => b.updatedAt - a.updatedAt),
+          sessions,
+          tasks: newTasks.length > 0 ? [...newTasks, ...s.tasks] : s.tasks,
+        };
+      });
     } catch (err) {
       console.warn('[Store] fetchFromServer failed:', err);
     }
@@ -465,13 +605,26 @@ export const useAppStore = create<AppState>((set, get) => ({
         const { apiRequest } = await import('./query-client');
         const project = get().projects.find((p) => p.id === projectId);
         const serverProjectId = project?.serverId || projectId;
-        await apiRequest('POST', '/api/fieldnotesai/sessions', {
+        const res = await apiRequest('POST', '/api/fieldnotesai/sessions', {
+          clientSessionId: session.id,
           projectId: serverProjectId,
           areaType,
           mode,
           sessionType,
           meetingMetadata,
         });
+        if (res.ok) {
+          const serverRes = await res.json();
+          const serverId = serverRes.session?.id || serverRes.session?._id;
+          if (serverId) {
+            await SessionStorage.update(session.id, { serverId });
+            set((s) => ({
+              sessions: s.sessions.map((sess) =>
+                sess.id === session.id ? { ...sess, serverId } : sess
+              ),
+            }));
+          }
+        }
       } catch (err) {
         console.warn('[Store] Session sync to server failed:', err);
       }
