@@ -9,7 +9,10 @@
       },
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2.1,
-      "position": [0, 0],
+      "position": [
+        0,
+        0
+      ],
       "id": "7b59ce03-40d2-4f6e-a7f6-04e2bc19b30e",
       "name": "Webhook",
       "webhookId": "c42e858c-d96e-4761-aebf-b364cf62a132"
@@ -31,7 +34,10 @@
       },
       "type": "@n8n/n8n-nodes-langchain.googleGemini",
       "typeVersion": 1,
-      "position": [208, 0],
+      "position": [
+        208,
+        0
+      ],
       "id": "484e2470-10e1-48c8-803a-8708a220652b",
       "name": "Analyze audio",
       "retryOnFail": true,
@@ -48,7 +54,10 @@
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [416, 0],
+      "position": [
+        416,
+        0
+      ],
       "id": "0f0c4648-af4a-49aa-bb65-1d9b63556c40",
       "name": "Code in JavaScript"
     },
@@ -58,7 +67,10 @@
       },
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.4,
-      "position": [624, 0],
+      "position": [
+        624,
+        0
+      ],
       "id": "01422b28-dba6-4f5b-a2b0-e04ad82b2e72",
       "name": "Respond to Webhook"
     }

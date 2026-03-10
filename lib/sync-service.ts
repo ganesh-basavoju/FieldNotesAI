@@ -339,6 +339,7 @@ async function processWebhookResult(sessionId: string, rawResult: any): Promise<
 
       await apiRequest("POST", "/api/fieldnotesai/webhook/n8n-callback", {
         sessionId: serverSessionId,
+        clientSessionId: sessionId,
         projectId: serverProjectId,
         ...result,
       });
